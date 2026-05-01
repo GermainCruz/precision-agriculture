@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:15-3.4
+    environment:
+      POSTGRES_DB: agricultura_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secure_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - agricultura-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - agricultura-network
+
+  n8n:
+    image: n8nio/n8n:latest
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: admin
+      N8N_BASIC_AUTH_PASSWORD: admin123
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_DATABASE: agricultura_db
+      DB_POSTGRESDB_USER: admin
+      DB_POSTGRESDB_PASSWORD: secure_password
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n-workflows:/home/node/.n8n/workflows
+    networks:
+      - agricultura-network
+    depends_on:
+      - postgres
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://admin:secure_password@postgres:5432/agricultura_db
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: your_jwt_secret_key
+      ML_SERVICE_URL: http://ml-service:5000
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - agricultura-network
+    depends_on:
+      - postgres
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - agricultura-network
+    depends_on:
+      - backend
+
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    environment:
+      MODEL_PATH: /app/models/ensemble_model.pkl
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./ml-service:/app
+      - ml_models:/app/models
+    networks:
+      - agricultura-network
+
+volumes:
+  postgres_data:
+  n8n_data:
+  ml_models:
+
+networks:
+  agricultura-network:
+    driver: bridge

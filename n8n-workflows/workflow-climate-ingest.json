@@ -1,0 +1,59 @@
+{
+  "name": "Ingesta de Datos Climáticos",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "hours", "hoursInterval": 1}]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.openweathermap.org/data/2.5/weather",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "lat",
+              "value": "={{ $node['Set Coordinates'].json.lat }}"
+            },
+            {
+              "name": "lon",
+              "value": "={{ $node['Set Coordinates'].json.lon }}"
+            },
+            {
+              "name": "appid",
+              "value": "={{ $env.OPENWEATHER_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "name": "OpenWeatherMap API",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nreturn {\n  sensor_id: 'climate-001',\n  timestamp: new Date().toISOString(),\n  temperatura: data.main.temp - 273.15,\n  humedad_ambiente: data.main.humidity,\n  precipitacion: data.rain ? data.rain['1h'] || 0 : 0,\n  velocidad_viento: data.wind.speed,\n  presion_atmosferica: data.main.pressure\n};"
+      },
+      "name": "Transform Data",
+      "type": "n8n-nodes-base.code",
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "lectura_sensor",
+        "columns": "sensor_id,timestamp,temperatura,humedad_ambiente,precipitacion,velocidad_viento,presion_atmosferica",
+        "values": "={{ $json.sensor_id }},={{ $json.timestamp }},={{ $json.temperatura }},={{ $json.humedad_ambiente }},={{ $json.precipitacion }},={{ $json.velocidad_viento }},={{ $json.presion_atmosferica }}"
+      },
+      "name": "PostgreSQL Insert",
+      "type": "n8n-nodes-base.postgres",
+      "position": [850, 300]
+    }
+  ]
+}
