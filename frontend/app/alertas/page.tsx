@@ -5,7 +5,9 @@ import { api } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Bell, AlertCircle, AlertTriangle, Info, Zap, CheckCheck } from 'lucide-react'
+import { Bell, AlertCircle, AlertTriangle, Info, Zap, CheckCheck, Loader2 } from 'lucide-react'
+import { GuestPrompt } from '@/components/auth/guest-prompt'
+import { useAuthToken } from '@/hooks/use-auth-token'
 import { formatDate } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 
@@ -26,13 +28,19 @@ const tipoLabels: Record<string, string> = {
 
 export default function AlertasPage() {
   const { toast } = useToast()
+  const { ready, isLoggedIn } = useAuthToken()
+  const canFetch = ready && isLoggedIn
+
   const [page, setPage] = useState(0)
   const PAGE_SIZE = 15
 
-  const { data, refetch, isLoading } = api.alerts.getAll.useQuery({
-    limit: PAGE_SIZE,
-    offset: page * PAGE_SIZE,
-  })
+  const { data, refetch, isLoading } = api.alerts.getAll.useQuery(
+    {
+      limit: PAGE_SIZE,
+      offset: page * PAGE_SIZE,
+    },
+    { enabled: canFetch },
+  )
 
   const markAsRead = api.alerts.markAsRead.useMutation({
     onSuccess: () => { toast({ title: 'Alerta marcada como leída' }); refetch() },
@@ -44,6 +52,23 @@ export default function AlertasPage() {
   const alerts = data?.alerts || []
   const total = data?.total || 0
   const totalPages = Math.ceil(total / PAGE_SIZE)
+
+  if (!ready) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Centro de Alertas</h1>
+        <GuestPrompt description="Las alertas de tu cuenta aparecen cuando has iniciado sesión." />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

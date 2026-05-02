@@ -22,6 +22,13 @@ interface YieldChartProps {
   data: YieldDataPoint[]
 }
 
+function yieldTooltipValue(value: unknown): string {
+  if (value == null) return '—'
+  if (typeof value === 'number' && Number.isFinite(value)) return `${value.toFixed(0)} kg/ha`
+  const n = Number(value)
+  return Number.isFinite(n) ? `${n.toFixed(0)} kg/ha` : '—'
+}
+
 export function YieldChart({ data }: YieldChartProps) {
   if (!data || data.length === 0) {
     return (
@@ -41,7 +48,7 @@ export function YieldChart({ data }: YieldChartProps) {
           label={{ value: 'kg/ha', angle: -90, position: 'insideLeft', offset: -5 }}
         />
         <Tooltip
-          formatter={(value: number) => [`${value?.toFixed(0)} kg/ha`, '']}
+          formatter={(value, name) => [yieldTooltipValue(value), String(name ?? '')]}
           labelFormatter={(label) => `Período: ${label}`}
         />
         <Legend />

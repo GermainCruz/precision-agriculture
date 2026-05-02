@@ -2,13 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { initTRPC, TRPCError } from '@trpc/server';
 import * as jwt from 'jsonwebtoken';
 
-interface JwtPayload {
+export interface JwtPayload {
   sub: string;
   email: string;
   rol: string;
 }
 
-interface Context {
+export interface Context {
   user?: JwtPayload;
   token?: string;
 }

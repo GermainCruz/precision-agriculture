@@ -128,7 +128,10 @@ export class IrrigationService {
       throw new NotFoundException('Lote no encontrado');
     }
 
-    const volumenM3 = this.calculateVolume(data.duracionMinutos, lote.areaHectareas);
+    const volumenM3 = this.calculateVolume(
+      data.duracionMinutos,
+      Number(lote.areaHectareas ?? 0),
+    );
 
     return this.prisma.eventoRiego.create({
       data: {
@@ -162,7 +165,10 @@ export class IrrigationService {
 
     if (eventos.length === 0) return 0;
 
-    const totalEfficiency = eventos.reduce((sum, e) => sum + (e.eficiencia || 0), 0);
+    const totalEfficiency = eventos.reduce(
+      (sum, e) => sum + Number(e.eficiencia ?? 0),
+      0,
+    );
     return totalEfficiency / eventos.length;
   }
 
@@ -209,8 +215,13 @@ export class IrrigationService {
     });
 
     const totalEvents = eventos.length;
-    const totalVolume = eventos.reduce((sum, e) => sum + (e.volumenM3 || 0), 0);
-    const avgEfficiency = eventos.reduce((sum, e) => sum + (e.eficiencia || 0), 0) / (totalEvents || 1);
+    const totalVolume = eventos.reduce(
+      (sum, e) => sum + Number(e.volumenM3 ?? 0),
+      0,
+    );
+    const avgEfficiency =
+      eventos.reduce((sum, e) => sum + Number(e.eficiencia ?? 0), 0) /
+      (totalEvents || 1);
 
     return {
       totalEvents,

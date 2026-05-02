@@ -44,13 +44,15 @@ export class TrpcRouter {
           apellido: z.string(),
         }))
         .mutation(async ({ input }) => {
-          return this.authService.register(input);
+          return this.authService.register(
+            input as { email: string; password: string; nombre: string; apellido: string },
+          );
         }),
 
       me: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .query(async ({ ctx }) => {
-          return this.authService.getUser(ctx.user.id);
+          return this.authService.getUser(ctx.user.sub);
         }),
 
       updateProfile: this.trpc.procedure
@@ -62,7 +64,7 @@ export class TrpcRouter {
         }))
         .mutation(async ({ input, ctx }) => {
           return this.prisma.usuario.update({
-            where: { id: ctx.user.id },
+            where: { id: ctx.user.sub },
             data: input,
             select: { id: true, email: true, nombre: true, apellido: true, telefono: true },
           });
@@ -75,13 +77,13 @@ export class TrpcRouter {
           newPassword: z.string().min(6),
         }))
         .mutation(async ({ input, ctx }) => {
-          const usuario = await this.prisma.usuario.findUnique({ where: { id: ctx.user.id } });
+          const usuario = await this.prisma.usuario.findUnique({ where: { id: ctx.user.sub } });
           if (!usuario) throw new Error('Usuario no encontrado');
           const valid = await bcrypt.compare(input.currentPassword, usuario.passwordHash);
           if (!valid) throw new Error('Contraseña actual incorrecta');
           const hash = await bcrypt.hash(input.newPassword, 10);
           await this.prisma.usuario.update({
-            where: { id: ctx.user.id },
+            where: { id: ctx.user.sub },
             data: { passwordHash: hash },
           });
           return { success: true };
@@ -93,14 +95,14 @@ export class TrpcRouter {
       getAll: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .query(async ({ ctx }) => {
-          return this.farmsService.findAll(ctx.user.id);
+          return this.farmsService.findAll(ctx.user.sub);
         }),
 
       getById: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .input(z.object({ id: z.string() }))
         .query(async ({ input, ctx }) => {
-          return this.farmsService.findOne(input.id, ctx.user.id);
+          return this.farmsService.findOne(input.id, ctx.user.sub);
         }),
 
       create: this.trpc.procedure
@@ -112,7 +114,15 @@ export class TrpcRouter {
           coordenadas: z.object({ lat: z.number(), lng: z.number() }).optional(),
         }))
         .mutation(async ({ input, ctx }) => {
-          return this.farmsService.create(input, ctx.user.id);
+          return this.farmsService.create(
+            input as {
+              nombre: string;
+              ubicacion?: string;
+              areaHectareas: number;
+              coordenadas?: { lat: number; lng: number };
+            },
+            ctx.user.sub,
+          );
         }),
 
       update: this.trpc.procedure
@@ -124,14 +134,14 @@ export class TrpcRouter {
           areaHectareas: z.number().positive().optional(),
         }))
         .mutation(async ({ input, ctx }) => {
-          return this.farmsService.update(input.id, input, ctx.user.id);
+          return this.farmsService.update(input.id, input, ctx.user.sub);
         }),
 
       delete: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .input(z.object({ id: z.string() }))
         .mutation(async ({ input, ctx }) => {
-          return this.farmsService.delete(input.id, ctx.user.id);
+          return this.farmsService.delete(input.id, ctx.user.sub);
         }),
     }),
 
@@ -141,14 +151,14 @@ export class TrpcRouter {
         .use(this.trpc.authMiddleware())
         .input(z.object({ fincaId: z.string() }))
         .query(async ({ input, ctx }) => {
-          return this.plotsService.findByFarm(input.fincaId, ctx.user.id);
+          return this.plotsService.findByFarm(input.fincaId, ctx.user.sub);
         }),
 
       getById: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .input(z.object({ id: z.string() }))
         .query(async ({ input, ctx }) => {
-          return this.plotsService.findOne(input.id, ctx.user.id);
+          return this.plotsService.findOne(input.id, ctx.user.sub);
         }),
 
       create: this.trpc.procedure
@@ -161,7 +171,16 @@ export class TrpcRouter {
           coordenadasPoligono: z.any().optional(),
         }))
         .mutation(async ({ input, ctx }) => {
-          return this.plotsService.create(input, ctx.user.id);
+          return this.plotsService.create(
+            input as {
+              nombre: string;
+              fincaId: string;
+              areaHectareas: number;
+              tipoSuelo: string;
+              coordenadasPoligono?: unknown;
+            },
+            ctx.user.sub,
+          );
         }),
 
       update: this.trpc.procedure
@@ -173,14 +192,14 @@ export class TrpcRouter {
           tipoSuelo: z.enum(['arcilloso', 'arenoso', 'limoso', 'franco', 'orgánico']).optional(),
         }))
         .mutation(async ({ input, ctx }) => {
-          return this.plotsService.update(input.id, input, ctx.user.id);
+          return this.plotsService.update(input.id, input, ctx.user.sub);
         }),
 
       delete: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .input(z.object({ id: z.string() }))
         .mutation(async ({ input, ctx }) => {
-          return this.plotsService.delete(input.id, ctx.user.id);
+          return this.plotsService.delete(input.id, ctx.user.sub);
         }),
     }),
 
@@ -205,7 +224,7 @@ export class TrpcRouter {
         }))
         .mutation(async ({ input, ctx }) => {
           const lote = await this.prisma.lote.findFirst({
-            where: { id: input.loteId, finca: { usuarioId: ctx.user.id } },
+            where: { id: input.loteId, finca: { usuarioId: ctx.user.sub } },
           });
           if (!lote) throw new Error('Lote no encontrado');
           return this.prisma.temporada.create({
@@ -231,7 +250,7 @@ export class TrpcRouter {
         }))
         .mutation(async ({ input, ctx }) => {
           const temporada = await this.prisma.temporada.findFirst({
-            where: { id: input.temporadaId, lote: { finca: { usuarioId: ctx.user.id } } },
+            where: { id: input.temporadaId, lote: { finca: { usuarioId: ctx.user.sub } } },
           });
           if (!temporada) throw new Error('Temporada no encontrada');
           return this.prisma.temporada.update({
@@ -250,21 +269,21 @@ export class TrpcRouter {
         .use(this.trpc.authMiddleware())
         .input(z.object({ loteId: z.string() }))
         .query(async ({ input, ctx }) => {
-          return this.predictionsService.findByPlot(input.loteId, ctx.user.id);
+          return this.predictionsService.findByPlot(input.loteId, ctx.user.sub);
         }),
 
       getCurrent: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .input(z.object({ loteId: z.string() }))
         .query(async ({ input, ctx }) => {
-          return this.predictionsService.getCurrentPrediction(input.loteId, ctx.user.id);
+          return this.predictionsService.getCurrentPrediction(input.loteId, ctx.user.sub);
         }),
 
       triggerPrediction: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .input(z.object({ loteId: z.string() }))
         .mutation(async ({ input, ctx }) => {
-          return this.predictionsService.triggerPrediction(input.loteId, ctx.user.id);
+          return this.predictionsService.triggerPrediction(input.loteId, ctx.user.sub);
         }),
     }),
 
@@ -274,7 +293,7 @@ export class TrpcRouter {
         .use(this.trpc.authMiddleware())
         .input(z.object({ loteId: z.string() }))
         .query(async ({ input, ctx }) => {
-          return this.sensorsService.findByPlot(input.loteId, ctx.user.id);
+          return this.sensorsService.findByPlot(input.loteId, ctx.user.sub);
         }),
 
       getReadings: this.trpc.procedure
@@ -286,7 +305,7 @@ export class TrpcRouter {
         }))
         .query(async ({ input, ctx }) => {
           return this.sensorsService.getReadings(
-            input.sensorId, input.startDate, input.endDate, ctx.user.id,
+            input.sensorId, input.startDate, input.endDate, ctx.user.sub,
           );
         }),
 
@@ -294,7 +313,7 @@ export class TrpcRouter {
         .use(this.trpc.authMiddleware())
         .input(z.object({ loteId: z.string() }))
         .query(async ({ input, ctx }) => {
-          return this.sensorsService.getLatestReadings(input.loteId, ctx.user.id);
+          return this.sensorsService.getLatestReadings(input.loteId, ctx.user.sub);
         }),
     }),
 
@@ -309,7 +328,7 @@ export class TrpcRouter {
         }))
         .query(async ({ input, ctx }) => {
           return this.irrigationService.getEvents(
-            input.loteId, input.startDate, input.endDate, ctx.user.id,
+            input.loteId, input.startDate, input.endDate, ctx.user.sub,
           );
         }),
 
@@ -317,7 +336,7 @@ export class TrpcRouter {
         .use(this.trpc.authMiddleware())
         .input(z.object({ loteId: z.string() }))
         .query(async ({ input, ctx }) => {
-          return this.irrigationService.getRecommendations(input.loteId, ctx.user.id);
+          return this.irrigationService.getRecommendations(input.loteId, ctx.user.sub);
         }),
 
       scheduleIrrigation: this.trpc.procedure
@@ -329,14 +348,22 @@ export class TrpcRouter {
           tipoRiego: z.enum(['goteo', 'aspersion', 'inundacion', 'subterraneo']),
         }))
         .mutation(async ({ input, ctx }) => {
-          return this.irrigationService.schedule(input, ctx.user.id);
+          return this.irrigationService.schedule(
+            input as {
+              loteId: string;
+              fechaHora: Date;
+              duracionMinutos: number;
+              tipoRiego: string;
+            },
+            ctx.user.sub,
+          );
         }),
 
       getEfficiencyMetrics: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .input(z.object({ fincaId: z.string().optional() }))
         .query(async ({ input, ctx }) => {
-          return this.irrigationService.getEfficiencyMetrics(ctx.user.id, input.fincaId);
+          return this.irrigationService.getEfficiencyMetrics(ctx.user.sub, input.fincaId);
         }),
     }),
 
@@ -346,7 +373,7 @@ export class TrpcRouter {
         .use(this.trpc.authMiddleware())
         .input(z.object({ tipo: z.enum(['operacional', 'gestion']).optional() }))
         .query(async ({ input, ctx }) => {
-          return this.reportsService.findAll(ctx.user.id, input.tipo);
+          return this.reportsService.findAll(ctx.user.sub, input.tipo);
         }),
 
       generateOperational: this.trpc.procedure
@@ -357,7 +384,10 @@ export class TrpcRouter {
           endDate: z.date(),
         }))
         .mutation(async ({ input, ctx }) => {
-          return this.reportsService.generateOperationalReport(input, ctx.user.id);
+          return this.reportsService.generateOperationalReport(
+            input as { loteId: string; startDate: Date; endDate: Date },
+            ctx.user.sub,
+          );
         }),
 
       generateManagement: this.trpc.procedure
@@ -367,21 +397,31 @@ export class TrpcRouter {
           temporadaId: z.string().optional(),
         }))
         .mutation(async ({ input, ctx }) => {
-          return this.reportsService.generateManagementReport(input, ctx.user.id);
+          return this.reportsService.generateManagementReport(
+            input as { fincaId: string; temporadaId?: string },
+            ctx.user.sub,
+          );
         }),
 
       download: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .input(z.object({ reportId: z.string() }))
         .query(async ({ input, ctx }) => {
-          return this.reportsService.getDownloadUrl(input.reportId, ctx.user.id);
+          return this.reportsService.getDownloadUrl(input.reportId, ctx.user.sub);
+        }),
+
+      exportJson: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .input(z.object({ reportId: z.string() }))
+        .mutation(async ({ input, ctx }) => {
+          return this.reportsService.exportReportJson(input.reportId, ctx.user.sub);
         }),
 
       delete: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .input(z.object({ reportId: z.string() }))
         .mutation(async ({ input, ctx }) => {
-          return this.reportsService.deleteReport(input.reportId, ctx.user.id);
+          return this.reportsService.deleteReport(input.reportId, ctx.user.sub);
         }),
     }),
 
@@ -390,27 +430,27 @@ export class TrpcRouter {
       getUnread: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .query(async ({ ctx }) => {
-          return this.alertsService.getUnread(ctx.user.id);
+          return this.alertsService.getUnread(ctx.user.sub);
         }),
 
       getAll: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .input(z.object({ limit: z.number().optional(), offset: z.number().optional() }))
         .query(async ({ input, ctx }) => {
-          return this.alertsService.getAll(ctx.user.id, input.limit, input.offset);
+          return this.alertsService.getAll(ctx.user.sub, input.limit, input.offset);
         }),
 
       markAsRead: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .input(z.object({ alertId: z.string() }))
         .mutation(async ({ input, ctx }) => {
-          return this.alertsService.markAsRead(input.alertId, ctx.user.id);
+          return this.alertsService.markAsRead(input.alertId, ctx.user.sub);
         }),
 
       markAllAsRead: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .mutation(async ({ ctx }) => {
-          return this.alertsService.markAllAsRead(ctx.user.id);
+          return this.alertsService.markAllAsRead(ctx.user.sub);
         }),
     }),
 
@@ -420,11 +460,11 @@ export class TrpcRouter {
         .use(this.trpc.authMiddleware())
         .query(async ({ ctx }) => {
           const [farms, plots, predictions, unreadAlerts, irrigation] = await Promise.all([
-            this.farmsService.findAll(ctx.user.id),
-            this.plotsService.findAllByUser(ctx.user.id),
-            this.predictionsService.getLatestPredictions(ctx.user.id),
-            this.alertsService.getUnreadCount(ctx.user.id),
-            this.irrigationService.getWeeklyEfficiency(ctx.user.id),
+            this.farmsService.findAll(ctx.user.sub),
+            this.plotsService.findAllByUser(ctx.user.sub),
+            this.predictionsService.getLatestPredictions(ctx.user.sub),
+            this.alertsService.getUnreadCount(ctx.user.sub),
+            this.irrigationService.getWeeklyEfficiency(ctx.user.sub),
           ]);
 
           const avgYield =
@@ -454,10 +494,10 @@ export class TrpcRouter {
         .query(async ({ input, ctx }) => {
           const [yieldHistory, irrigationData, climateData, efficiencyMetrics] =
             await Promise.all([
-              this.predictionsService.getYieldHistory(ctx.user.id, input.fincaId, input.periodo),
-              this.irrigationService.getIrrigationData(ctx.user.id, input.fincaId, input.periodo),
-              this.sensorsService.getClimateData(ctx.user.id, input.fincaId, input.periodo),
-              this.irrigationService.getEfficiencyMetrics(ctx.user.id, input.fincaId),
+              this.predictionsService.getYieldHistory(ctx.user.sub, input.fincaId, input.periodo),
+              this.irrigationService.getIrrigationData(ctx.user.sub, input.fincaId, input.periodo),
+              this.sensorsService.getClimateData(ctx.user.sub, input.fincaId, input.periodo),
+              this.irrigationService.getEfficiencyMetrics(ctx.user.sub, input.fincaId),
             ]);
 
           return { yieldHistory, irrigationData, climateData, efficiencyMetrics };

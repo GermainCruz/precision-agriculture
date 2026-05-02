@@ -11,9 +11,11 @@ import {
   Bell,
   Settings,
   LogOut,
+  LogIn,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
+import { useAuthToken, notifyAuthChanged } from '@/hooks/use-auth-token'
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -27,11 +29,13 @@ const menuItems = [
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const { isLoggedIn, ready } = useAuthToken()
 
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
-    router.push('/login')
+    notifyAuthChanged()
+    router.push('/dashboard')
   }
 
   return (
@@ -40,7 +44,7 @@ export function Sidebar() {
         <h1 className="text-xl font-bold text-green-700">AgriPrecision</h1>
         <p className="text-sm text-gray-500">Agricultura Inteligente</p>
       </div>
-      
+
       <nav className="flex-1 px-4 space-y-1">
         {menuItems.map((item) => {
           const Icon = item.icon
@@ -61,16 +65,30 @@ export function Sidebar() {
           )
         })}
       </nav>
-      
-      <div className="p-4 border-t">
-        <Button
-          variant="ghost"
-          className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-          onClick={handleLogout}
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          Cerrar Sesión
-        </Button>
+
+      <div className="p-4 border-t space-y-2">
+        {ready && isLoggedIn ? (
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+            onClick={handleLogout}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Cerrar sesión
+          </Button>
+        ) : ready ? (
+          <>
+            <Button variant="outline" className="w-full justify-start" asChild>
+              <Link href="/login">
+                <LogIn className="mr-2 h-4 w-4" />
+                Iniciar sesión
+              </Link>
+            </Button>
+            <Button variant="ghost" className="w-full justify-start text-green-700" asChild>
+              <Link href="/register">Registrarse</Link>
+            </Button>
+          </>
+        ) : null}
       </div>
     </aside>
   )

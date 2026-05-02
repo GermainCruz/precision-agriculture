@@ -12,7 +12,9 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Droplet, Calendar, Clock, TrendingUp, History, AlertCircle } from 'lucide-react'
+import { Droplet, Calendar, History, AlertCircle, Loader2 } from 'lucide-react'
+import { GuestPrompt } from '@/components/auth/guest-prompt'
+import { useAuthToken } from '@/hooks/use-auth-token'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
@@ -27,6 +29,9 @@ const TIPO_RIEGO_LABELS: Record<string, string> = {
 
 export default function RiegoPage() {
   const { toast } = useToast()
+  const { ready, isLoggedIn } = useAuthToken()
+  const canFetch = ready && isLoggedIn
+
   const [selectedFarm, setSelectedFarm] = useState<string>('')
   const [selectedPlot, setSelectedPlot] = useState<string>('')
   const [scheduleOpen, setScheduleOpen] = useState(false)
@@ -36,15 +41,15 @@ export default function RiegoPage() {
     tipoRiego: 'goteo' as 'goteo' | 'aspersion' | 'inundacion' | 'subterraneo',
   })
 
-  const { data: farms } = api.farms.getAll.useQuery()
+  const { data: farms } = api.farms.getAll.useQuery(undefined, { enabled: canFetch })
   const { data: plots } = api.plots.getAllByFarm.useQuery(
     { fincaId: selectedFarm },
-    { enabled: !!selectedFarm },
+    { enabled: canFetch && !!selectedFarm },
   )
   const { data: recommendations, isLoading: recsLoading } =
     api.irrigation.getRecommendations.useQuery(
       { loteId: selectedPlot },
-      { enabled: !!selectedPlot },
+      { enabled: canFetch && !!selectedPlot },
     )
   const { data: events } = api.irrigation.getEvents.useQuery(
     {
@@ -52,7 +57,7 @@ export default function RiegoPage() {
       startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
       endDate: new Date(),
     },
-    { enabled: !!selectedPlot },
+    { enabled: canFetch && !!selectedPlot },
   )
 
   const scheduleIrrigation = api.irrigation.scheduleIrrigation.useMutation({
@@ -75,10 +80,21 @@ export default function RiegoPage() {
     })
   }
 
-  const urgencyColor = (urgency?: string) => {
-    if (urgency === 'high') return 'text-red-600'
-    if (urgency === 'medium') return 'text-yellow-600'
-    return 'text-green-600'
+  if (!ready) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh] text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Gestión de Riego</h1>
+        <GuestPrompt description="Programar riego, ver recomendaciones e historial requiere identificarte para asociarlo a tus lotes." />
+      </div>
+    )
   }
 
   return (

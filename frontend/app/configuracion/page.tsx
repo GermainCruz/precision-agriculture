@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Loader2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { GuestPrompt } from '@/components/auth/guest-prompt'
+import { useAuthToken } from '@/hooks/use-auth-token'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +15,9 @@ import { useToast } from '@/hooks/use-toast'
 
 export default function ConfiguracionPage() {
   const { toast } = useToast()
+  const { ready, isLoggedIn } = useAuthToken()
+  const canFetch = ready && isLoggedIn
+
   const [profile, setProfile] = useState({ nombre: '', apellido: '', telefono: '' })
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' })
   const [notifPrefs, setNotifPrefs] = useState({
@@ -21,7 +27,7 @@ export default function ConfiguracionPage() {
     smsSolo: false,
   })
 
-  const { data: me, refetch: refetchMe } = api.auth.me.useQuery()
+  const { data: me, refetch: refetchMe } = api.auth.me.useQuery(undefined, { enabled: canFetch })
 
   useEffect(() => {
     if (me) {
@@ -56,6 +62,23 @@ export default function ConfiguracionPage() {
       return
     }
     changePassword.mutate({ currentPassword: passwords.current, newPassword: passwords.newPass })
+  }
+
+  if (!ready) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="space-y-6 max-w-2xl">
+        <h1 className="text-3xl font-bold">Configuración</h1>
+        <GuestPrompt description="Editar perfil, contraseña y preferencias solo está disponible con tu cuenta iniciada." />
+      </div>
+    )
   }
 
   return (

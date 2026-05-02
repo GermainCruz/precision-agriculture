@@ -33,7 +33,7 @@ CREATE TABLE finca (
     nombre VARCHAR(100) NOT NULL,
     ubicacion VARCHAR(255),
     area_hectareas DECIMAL(10,2) CHECK (area_hectareas > 0),
-    coordenadas GEOGRAPHY(POINT, 4326),
+    coordenadas JSONB,
     usuario_id UUID NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -45,7 +45,7 @@ CREATE TABLE lote (
     nombre VARCHAR(100) NOT NULL,
     area_hectareas DECIMAL(10,2) CHECK (area_hectareas > 0),
     tipo_suelo VARCHAR(50) CHECK (tipo_suelo IN ('arcilloso', 'arenoso', 'limoso', 'franco', 'orgánico')),
-    coordenadas_poligono GEOGRAPHY(POLYGON, 4326),
+    coordenadas_poligono JSONB,
     finca_id UUID NOT NULL REFERENCES finca(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -80,7 +80,7 @@ CREATE TABLE sensor (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     codigo VARCHAR(50) UNIQUE NOT NULL,
     tipo VARCHAR(50) CHECK (tipo IN ('clima', 'suelo', 'humedad', 'temperatura')),
-    ubicacion GEOGRAPHY(POINT, 4326),
+    ubicacion JSONB,
     lote_id UUID REFERENCES lote(id) ON DELETE SET NULL,
     instalado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ultimo_mantenimiento TIMESTAMP,

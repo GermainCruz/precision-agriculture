@@ -1,7 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Farm, MapPin, TrendingUp, AlertCircle } from 'lucide-react'
+import { Tractor, MapPin, TrendingUp, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface MetricCardProps {
@@ -12,7 +12,7 @@ interface MetricCardProps {
 }
 
 const icons = {
-  farm: Farm,
+  farm: Tractor,
   plot: MapPin,
   yield: TrendingUp,
   alert: AlertCircle,

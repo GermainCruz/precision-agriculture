@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import {
   BarChart,
   Bar,
@@ -9,7 +10,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Cell,
 } from 'recharts'
 
 interface IrrigationDataPoint {
@@ -23,10 +23,23 @@ interface IrrigationChartProps {
   data: IrrigationDataPoint[]
 }
 
-const getBarColor = (value: number) => {
-  if (value > 80) return '#16a34a'
-  if (value > 60) return '#eab308'
-  return '#dc2626'
+function coerceNumber(value: unknown): number | null {
+  if (value == null) return null
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
+function irrigationTooltipFormatter(value: unknown, name: string): [ReactNode, string] {
+  if (name === 'totalVolume') {
+    const n = coerceNumber(value)
+    return [n !== null ? `${n.toFixed(1)} m³` : '—', 'Volumen Total']
+  }
+  if (name === 'events') {
+    const n = coerceNumber(value)
+    return [n !== null ? String(Math.round(n)) : '—', 'Eventos']
+  }
+  return [value == null ? '—' : String(value), name]
 }
 
 export function IrrigationChart({ data }: IrrigationChartProps) {
@@ -48,10 +61,7 @@ export function IrrigationChart({ data }: IrrigationChartProps) {
           label={{ value: 'm³', angle: -90, position: 'insideLeft', offset: -5 }}
         />
         <Tooltip
-          formatter={(value: number, name: string) => [
-            name === 'totalVolume' ? `${value?.toFixed(1)} m³` : value,
-            name === 'totalVolume' ? 'Volumen Total' : name === 'events' ? 'Eventos' : name,
-          ]}
+          formatter={(value, name) => irrigationTooltipFormatter(value, String(name))}
           labelFormatter={(label) => `Período: ${label}`}
         />
         <Legend

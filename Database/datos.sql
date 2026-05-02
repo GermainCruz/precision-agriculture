@@ -97,7 +97,7 @@ SELECT
 	nombre,
 	ubicacion,
 	area_hectareas,
-	ST_SetSRID(ST_MakePoint(lon, lat), 4326)::geography,
+	json_build_object('lng', lon::float, 'lat', lat::float)::jsonb,
 	format('00000000-0000-0000-0000-%s', lpad(to_hex(usuario_num), 12, '0'))::uuid,
 	created_at,
 	updated_at
@@ -133,7 +133,9 @@ SELECT
 	nombre,
 	area_hectareas,
 	tipo_suelo,
-	ST_MakeEnvelope(lon - 0.008, lat - 0.008, lon + 0.008, lat + 0.008, 4326)::geography,
+	(ST_AsGeoJSON(
+		ST_MakeEnvelope(lon - 0.008, lat - 0.008, lon + 0.008, lat + 0.008, 4326)::geometry
+	)::json)::jsonb,
 	format('00000000-0000-0000-0000-%s', lpad(to_hex(finca_num), 12, '0'))::uuid,
 	created_at,
 	updated_at
@@ -236,7 +238,7 @@ SELECT
 	format('00000000-0000-0000-0000-%s', lpad(to_hex(num), 12, '0'))::uuid,
 	codigo,
 	tipo,
-	ST_SetSRID(ST_MakePoint(lon, lat), 4326)::geography,
+	json_build_object('lng', lon::float, 'lat', lat::float)::jsonb,
 	format('00000000-0000-0000-0000-%s', lpad(to_hex(lote_num), 12, '0'))::uuid,
 	instalado_en,
 	ultimo_mantenimiento,
@@ -436,7 +438,7 @@ SELECT
 	END,
 	tipo,
 	formato,
-	'https://storage.local/reportes/reporte_' || lpad(gs::text, 3, '0') || '.' || formato,
+	NULL,
 	jsonb_build_object(
 		'rango', CASE WHEN gs % 2 = 0 THEN 'mensual' ELSE 'semanal' END,
 		'tipo', tipo,

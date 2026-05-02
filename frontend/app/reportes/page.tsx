@@ -1,7 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { GuestPrompt } from '@/components/auth/guest-prompt'
+import { useAuthToken } from '@/hooks/use-auth-token'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -27,6 +30,9 @@ const tipoConfig = {
 
 export default function ReportesPage() {
   const { toast } = useToast()
+  const { ready, isLoggedIn } = useAuthToken()
+  const canFetch = ready && isLoggedIn
+
   const [filterTipo, setFilterTipo] = useState<'operacional' | 'gestion' | undefined>()
   const [genDialogOpen, setGenDialogOpen] = useState(false)
   const [genType, setGenType] = useState<'operacional' | 'gestion'>('operacional')
@@ -37,11 +43,14 @@ export default function ReportesPage() {
     endDate: '',
   })
 
-  const { data: reportes, refetch, isLoading } = api.reports.getAll.useQuery({ tipo: filterTipo })
-  const { data: farms } = api.farms.getAll.useQuery()
+  const { data: reportes, refetch, isLoading } = api.reports.getAll.useQuery(
+    { tipo: filterTipo },
+    { enabled: canFetch },
+  )
+  const { data: farms } = api.farms.getAll.useQuery(undefined, { enabled: canFetch })
   const { data: plots } = api.plots.getAllByFarm.useQuery(
     { fincaId: form.fincaId },
-    { enabled: !!form.fincaId },
+    { enabled: canFetch && !!form.fincaId },
   )
 
   const generateOperational = api.reports.generateOperational.useMutation({
@@ -66,6 +75,30 @@ export default function ReportesPage() {
     onSuccess: () => { toast({ title: 'Reporte eliminado' }); refetch() },
   })
 
+  const exportJson = api.reports.exportJson.useMutation({
+    onSuccess: (data: { filename: string; contenido: unknown }) => {
+      const blob = new Blob([JSON.stringify(data.contenido, null, 2)], {
+        type: 'application/json;charset=utf-8',
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = data.filename
+      a.click()
+      URL.revokeObjectURL(url)
+      toast({
+        title: 'Descarga lista',
+        description: `Archivo ${data.filename} generado.`,
+        variant: 'success' as any,
+      })
+      refetch()
+    },
+    onError: (err: any) =>
+      toast({ title: 'No se pudo exportar', description: err.message, variant: 'destructive' }),
+  })
+
+  const downloadReportJson = (reportId: string) => exportJson.mutate({ reportId })
+
   const handleGenerate = () => {
     if (genType === 'operacional') {
       if (!form.loteId || !form.startDate || !form.endDate) {
@@ -87,6 +120,26 @@ export default function ReportesPage() {
   }
 
   const isGenerating = generateOperational.isLoading || generateManagement.isLoading
+
+  if (!ready) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Reportes</h1>
+          <p className="text-gray-500 text-sm mt-1">Genera y descarga reportes del sistema</p>
+        </div>
+        <GuestPrompt description="Lista, generación y eliminación de reportes están vinculadas a tu usuario; identifícate para usar esta sección." />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -163,11 +216,28 @@ export default function ReportesPage() {
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      {reporte.urlArchivo && (
-                        <Button variant="outline" size="sm" asChild>
-                          <a href={reporte.urlArchivo} download>
+                      {reporte.urlArchivo ? (
+                        <Button variant="outline" size="sm" asChild title="Abrir archivo">
+                          <a
+                            href={reporte.urlArchivo}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
                             <Download className="h-4 w-4" />
                           </a>
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          title="Descargar JSON"
+                          disabled={
+                            exportJson.isLoading &&
+                            exportJson.variables?.reportId === reporte.id
+                          }
+                          onClick={() => downloadReportJson(reporte.id)}
+                        >
+                          <Download className="h-4 w-4" />
                         </Button>
                       )}
                       <Button

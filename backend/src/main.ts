@@ -5,11 +5,36 @@ import * as trpcExpress from '@trpc/server/adapters/express';
 import { TrpcRouter } from './trpc/trpc.router';
 import { TrpcService } from './trpc/trpc.service';
 
+/** En desarrollo acepta cualquier puerto de localhost (p. ej. 3001 si 3000 está ocupado). */
+function corsOriginDelegate(
+  origin: string | undefined,
+  callback: (err: Error | null, allow?: boolean | string) => void,
+): void {
+  if (!origin) {
+    callback(null, true);
+    return;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    const allowed = process.env.FRONTEND_URL;
+    if (allowed && origin === allowed) {
+      callback(null, origin);
+      return;
+    }
+    callback(new Error('Not allowed by CORS'));
+    return;
+  }
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+    callback(null, origin);
+    return;
+  }
+  callback(new Error('Not allowed by CORS'));
+}
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { cors: true });
+  const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: corsOriginDelegate,
     credentials: true,
   });
 

@@ -1,7 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { GuestPrompt } from '@/components/auth/guest-prompt'
+import { useAuthToken } from '@/hooks/use-auth-token'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -20,20 +23,43 @@ const TIPO_SUELO_LABELS: Record<string, string> = {
 }
 
 export default function LotesPage() {
+  const { ready, isLoggedIn } = useAuthToken()
+  const canFetch = ready && isLoggedIn
+
   const [selectedFarm, setSelectedFarm] = useState<string>('')
   const [createPlotOpen, setCreatePlotOpen] = useState(false)
   const [createFarmOpen, setCreateFarmOpen] = useState(false)
   const [selectedPlot, setSelectedPlot] = useState<any>(null)
 
-  const { data: farms, isLoading: farmsLoading, refetch: refetchFarms } = api.farms.getAll.useQuery()
+  const { data: farms, isLoading: farmsLoading, refetch: refetchFarms } = api.farms.getAll.useQuery(
+    undefined,
+    { enabled: canFetch },
+  )
   const {
     data: plots,
     isLoading: plotsLoading,
     refetch: refetchPlots,
   } = api.plots.getAllByFarm.useQuery(
     { fincaId: selectedFarm },
-    { enabled: !!selectedFarm },
+    { enabled: canFetch && !!selectedFarm },
   )
+
+  if (!ready) {
+    return (
+      <div className="flex items-center justify-center h-48 text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Gestión de Fincas y Lotes</h1>
+        <GuestPrompt description="Aquí puedes registrar fincas, lotes, temporadas y sensores cuando tengas sesión iniciada." />
+      </div>
+    )
+  }
 
   if (farmsLoading) {
     return (

@@ -59,11 +59,11 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(data.password, 10);
     const rolUsuario = await this.prisma.rol.findFirst({
-      where: { nombre: 'usuario' },
+      where: { nombre: 'agricultor' },
     });
 
     if (!rolUsuario) {
-      throw new Error('Rol de usuario no encontrado');
+      throw new Error('Rol "agricultor" no encontrado en la base de datos');
     }
 
     const usuario = await this.prisma.usuario.create({

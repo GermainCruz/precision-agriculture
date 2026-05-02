@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, AlertTriangle, Info, Zap } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useAuthToken } from '@/hooks/use-auth-token'
+import Link from 'next/link'
 
 const severityConfig = {
   critica: {
@@ -43,13 +45,35 @@ const tipoLabels: Record<string, string> = {
 
 export function AlertsList() {
   const router = useRouter()
-  const { data, refetch } = api.alerts.getUnread.useQuery()
+  const { isLoggedIn, ready } = useAuthToken()
+  const canFetch = ready && isLoggedIn
+
+  const { data, refetch } = api.alerts.getUnread.useQuery(undefined, { enabled: canFetch })
   const markAsRead = api.alerts.markAsRead.useMutation({
     onSuccess: () => refetch(),
   })
   const markAllAsRead = api.alerts.markAllAsRead.useMutation({
     onSuccess: () => refetch(),
   })
+
+  if (!ready) {
+    return <p className="text-center text-sm text-muted-foreground py-6">Cargando…</p>
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="text-center py-8 text-muted-foreground space-y-2">
+        <Info className="h-8 w-8 mx-auto text-gray-300" />
+        <p className="text-sm">
+          Las alertas de tu cuenta aparecen aquí cuando{' '}
+          <Link href="/login" className="text-green-700 font-medium underline underline-offset-2">
+            inicies sesión
+          </Link>
+          .
+        </p>
+      </div>
+    )
+  }
 
   const alerts = data || []
 
