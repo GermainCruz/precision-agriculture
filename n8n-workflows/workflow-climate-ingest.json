@@ -1,15 +1,30 @@
 {
-  "name": "Ingesta de Datos Climáticos",
+  "name": "AgriPrecision — ingesta clima (OpenWeather → lectura_sensor)",
   "nodes": [
     {
       "parameters": {
         "rule": {
-          "interval": [{"field": "hours", "hoursInterval": 1}]
+          "interval": [{ "field": "hours", "hoursInterval": 6 }]
         }
       },
-      "name": "Schedule Trigger",
+      "id": "22222222-aaaa-bbbb-cccc-dddddddddd01",
+      "name": "Cada 6 horas",
       "type": "n8n-nodes-base.scheduleTrigger",
-      "position": [250, 300]
+      "typeVersion": 1.2,
+      "position": [160, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id::text AS sensor_id,\n  COALESCE((ubicacion->>'lat')::double precision, -34.6) AS lat,\n  COALESCE((ubicacion->>'lng')::double precision, -58.44) AS lon\nFROM sensor\nWHERE tipo = 'clima' AND activo IS TRUE\nORDER BY instalado_en ASC\nLIMIT 1;",
+        "options": {}
+      },
+      "id": "22222222-aaaa-bbbb-cccc-dddddddddd02",
+      "name": "Postgres leer sensor clima",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [400, 300],
+      "credentials": {}
     },
     {
       "parameters": {
@@ -17,43 +32,62 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            {
-              "name": "lat",
-              "value": "={{ $node['Set Coordinates'].json.lat }}"
-            },
-            {
-              "name": "lon",
-              "value": "={{ $node['Set Coordinates'].json.lon }}"
-            },
-            {
-              "name": "appid",
-              "value": "={{ $env.OPENWEATHER_API_KEY }}"
-            }
+            { "name": "lat", "value": "={{ $json.lat }}" },
+            { "name": "lon", "value": "={{ $json.lon }}" },
+            { "name": "appid", "value": "={{ $env.OPENWEATHER_API_KEY }}" },
+            { "name": "units", "value": "metric" }
           ]
-        }
+        },
+        "options": {}
       },
-      "name": "OpenWeatherMap API",
+      "id": "22222222-aaaa-bbbb-cccc-dddddddddd03",
+      "name": "HTTP OpenWeather",
       "type": "n8n-nodes-base.httpRequest",
-      "position": [450, 300]
+      "typeVersion": 4.2,
+      "position": [640, 300]
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\n\nreturn {\n  sensor_id: 'climate-001',\n  timestamp: new Date().toISOString(),\n  temperatura: data.main.temp - 273.15,\n  humedad_ambiente: data.main.humidity,\n  precipitacion: data.rain ? data.rain['1h'] || 0 : 0,\n  velocidad_viento: data.wind.speed,\n  presion_atmosferica: data.main.pressure\n};"
+        "jsCode": "const sensor = $('Postgres leer sensor clima').first().json;\nconst w = $input.first().json;\nif (!sensor?.sensor_id) {\n  throw new Error('No hay sensor tipo clima en la base. Carga datos de ejemplo (Database/datos.sql) o crea un sensor.');\n}\nconst temp = Number(w.main?.temp ?? 0);\nconst hum = Math.round(Number(w.main?.humidity ?? 0));\nconst rain = Number(w.rain?.['1h'] ?? 0);\nconst wind = Number(w.wind?.speed ?? 0);\nconst press = Number(w.main?.pressure ?? 0);\nconst q = `INSERT INTO lectura_sensor (sensor_id, \"timestamp\", temperatura, humedad_ambiente, precipitacion, velocidad_viento, presion_atmosferica) VALUES ('${sensor.sensor_id}'::uuid, NOW(), ${temp}, ${hum}, ${rain}, ${wind}, ${press});`;\nreturn [{ json: { query: q } }];"
       },
-      "name": "Transform Data",
+      "id": "22222222-aaaa-bbbb-cccc-dddddddddd04",
+      "name": "Generar SQL insert",
       "type": "n8n-nodes-base.code",
-      "position": [650, 300]
+      "typeVersion": 2,
+      "position": [880, 300]
     },
     {
       "parameters": {
-        "operation": "insert",
-        "table": "lectura_sensor",
-        "columns": "sensor_id,timestamp,temperatura,humedad_ambiente,precipitacion,velocidad_viento,presion_atmosferica",
-        "values": "={{ $json.sensor_id }},={{ $json.timestamp }},={{ $json.temperatura }},={{ $json.humedad_ambiente }},={{ $json.precipitacion }},={{ $json.velocidad_viento }},={{ $json.presion_atmosferica }}"
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
       },
-      "name": "PostgreSQL Insert",
+      "id": "22222222-aaaa-bbbb-cccc-dddddddddd05",
+      "name": "Postgres insertar lectura",
       "type": "n8n-nodes-base.postgres",
-      "position": [850, 300]
+      "typeVersion": 2.5,
+      "position": [1120, 300],
+      "credentials": {}
     }
-  ]
+  ],
+  "connections": {
+    "Cada 6 horas": {
+      "main": [[{ "node": "Postgres leer sensor clima", "type": "main", "index": 0 }]]
+    },
+    "Postgres leer sensor clima": {
+      "main": [[{ "node": "HTTP OpenWeather", "type": "main", "index": 0 }]]
+    },
+    "HTTP OpenWeather": {
+      "main": [[{ "node": "Generar SQL insert", "type": "main", "index": 0 }]]
+    },
+    "Generar SQL insert": {
+      "main": [[{ "node": "Postgres insertar lectura", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [],
+  "active": false,
+  "meta": { "templateCredsSetupCompleted": false }
 }

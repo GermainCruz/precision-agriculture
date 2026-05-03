@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-green)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
-[![Python](https://img.shields.io/badge/Python-3.9%2B-blue)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
 
 ## 📋 Tabla de Contenidos
 
@@ -59,7 +59,7 @@ El sistema está diseñado para **pequeños y medianos productores agrícolas** 
 | **Gestión de Riego** | Recomendaciones automáticas, históricos | ✅ Completo |
 | **Reportes Automáticos** | PDF operacionales y de gestión | ✅ Completo |
 | **Workflows Automáticos** | Integración con n8n, procesos recurrentes | ✅ Completo |
-| **Autenticación JWT** | Seguridad con tokens, refresh tokens | ✅ Completo |
+| **Autenticación JWT** | Sesión con token; navegación en modo invitado | ✅ Completo |
 | **API tRPC** | Type-safe API con validación | ✅ Completo |
 
 ---
@@ -76,7 +76,7 @@ El sistema está diseñado para **pequeños y medianos productores agrícolas** 
                          ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                  BACKEND (NestJS + tRPC)                         │
-│                  http://localhost:4000                           │
+│                  http://localhost:3001 (Docker) / :4000 (npm local) │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
 │  │ Auth Module  │  │ Farms Module │  │ Predictions Module   │  │
 │  └──────────────┘  └──────────────┘  └──────────────────────┘  │
@@ -96,8 +96,8 @@ El sistema está diseñado para **pequeños y medianos productores agrícolas** 
     ┌─────────┐   ┌─────────┐   ┌─────────────────┐
     │PostgreSQL   │ Redis   │   │ ML Service      │
     │  (15)       │ (7)     │   │ (Flask+Python)  │
-    │ http://     │ http:// │   │ http://         │
-    │ :5432       │ :6379   │   │ localhost:5000  │
+    │ http://     │ http:// │   │ puerto :5000    │
+    │ :5432       │ :6379   │   │ (véase README)   │
     └─────────────┴─────────┴───┴─────────────────┘
          │
          ▼
@@ -124,7 +124,7 @@ El sistema está diseñado para **pequeños y medianos productores agrícolas** 
 - **Base de Datos**: PostgreSQL 15 + PostGIS
 - **Cache**: Redis 7
 - **Cron Jobs**: node-cron
-- **PDF**: Puppeteer
+- **PDF**: PDFKit
 
 ### Frontend
 - **Framework**: Next.js 14
@@ -136,9 +136,9 @@ El sistema está diseñado para **pequeños y medianos productores agrícolas** 
 - **UI Atoms**: Radix UI
 
 ### Machine Learning
-- **Framework**: Python 3.9+
-- **Librerías**: scikit-learn, pandas, numpy
-- **Servidor**: Flask + Gunicorn
+- **Framework**: Python 3.11+ (recomendado 3.13 en Windows por ruedas precompiladas de NumPy/sklearn)
+- **Librerías**: scikit-learn, NumPy, joblib
+- **Servidor**: Flask (desarrollo) / Gunicorn (contenedor)
 - **Modelos**: Ensemble Learning (Random Forest, Gradient Boosting)
 
 ### Infraestructura
@@ -163,7 +163,7 @@ El sistema está diseñado para **pequeños y medianos productores agrícolas** 
   - Descargar: https://nodejs.org/
 - **PostgreSQL Client** (opcional para desarrollo local sin Docker)
   - Descargar: https://www.postgresql.org/download/
-- **Python**: 3.9+ (opcional para ML service local)
+- **Python**: 3.11+ (opcional para ML service local; ver `ml-service/requirements.txt`)
   - Descargar: https://www.python.org/
 
 ### Recursos Mínimos
@@ -196,13 +196,12 @@ FRONTEND_URL=http://localhost:3000
 JWT_SECRET=tu_secreto_jwt_super_seguro_aqui
 NODE_ENV=development
 
-# ML Service
+# ML Service: en Compose es el hostname del contenedor. En local: http://127.0.0.1:5000
 ML_SERVICE_URL=http://ml-service:5000
 
-# n8n
-N8N_URL=http://n8n:5678
-N8N_USER=admin
-N8N_PASSWORD=admin123
+# n8n — clave fija para cifrar credenciales dentro de n8n (≥32 caracteres)
+N8N_ENCRYPTION_KEY=tu-frase-secreta-muy-larga-no-la-cambies-cada-arranque
+OPENWEATHER_API_KEY=
 
 # Redis
 REDIS_URL=redis://redis:6379
@@ -224,7 +223,7 @@ docker-compose ps
 - 🔴 **Redis**: http://localhost:6379
 - 📝 **n8n**: http://localhost:5678 (admin/admin123)
 - 🐍 **ML Service**: http://localhost:5000
-- 🚀 **Backend**: http://localhost:4000
+- 🚀 **Backend**: http://localhost:3001 (Compose expone `PORT=3001` en el contenedor)
 
 ### 4️⃣ Ejecutar Migraciones y Seed
 
@@ -248,7 +247,7 @@ exit
 ### 5️⃣ Acceder al Sistema
 
 - **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:4000/trpc
+- **Backend API (Compose)**: http://localhost:3001/trpc
 - **n8n Dashboard**: http://localhost:5678 (admin/admin123)
 - **ML Service API**: http://localhost:5000
 
@@ -307,27 +306,49 @@ npm run dev
 
 ### ML Service (Python)
 
+En **desarrollo local**, el backend llama al ML por HTTP. Usa **`http://127.0.0.1:5000`** en `backend/.env` (`ML_SERVICE_URL`) en Windows: evita que `localhost` resuelva a IPv6 cuando Flask escucha solo en IPv4.
+
+**Windows (recomendado):** desde `ml-service` ejecuta `run-local.bat` (crea `.venv`, instala deps y lanza Flask). Mantén esa ventana abierta mientras uses **Predicción**.
+
 ```bash
 # Entrar al directorio
 cd ml-service
 
-# Crear entorno virtual
-python -m venv venv
+# Crear entorno virtual (nombre usado por run-local.bat: .venv)
+python -m venv .venv
 
 # Activar entorno virtual
-# En Windows:
-venv\Scripts\activate
+# En Windows (CMD después de crear .venv):
+.venv\Scripts\activate.bat
 # En macOS/Linux:
-source venv/bin/activate
+source .venv/bin/activate
 
-# Instalar dependencias
 pip install -r requirements.txt
-
-# Iniciar servidor
 python app.py
-
-# ML Service estará en http://localhost:5000
 ```
+
+Endpoints útiles:
+
+- `GET /` — Estado del servicio y lista de rutas (JSON)
+- `GET /health` — Comprobación rápida (`model_trained`, etc.)
+- `POST /predict/yield` — Predicción de rendimiento (lo usa NestJS)
+
+Abrir solo `http://127.0.0.1:5000/` en el navegador debe responder JSON; **no** usar la raíz como indicador de fallo del modelo.
+
+### n8n (automación)
+
+**Sin Docker (local):** en **`n8n-workflows`** ejecuta **`run-local.bat`**. Lee **`backend/.env`** y del **`.env` raíz** solo **`OPENWEATHER_API_KEY`** / **`N8N_*`** (no pisar `DATABASE_URL` local por valores Docker). SQLite en **`n8n-workflows/n8n-local-data`**, **http://localhost:5678**. La consola resume host/usuario/base para la credencial Postgres (sin contraseña). Opcional primera vez: **`import-workflows.bat`** (con n8n cerrado) antes de **`run-local.bat`**.
+
+**Con Docker Compose:** `docker compose up` levanta el servicio **`n8n`** con PostgreSQL dedicado (**base `n8n`**, script `Database/init-n8n-database.sql` en el primer arranque del volumen). La credencial hacia tus datos usa host **`postgres`** y la base **`agricultura_db`** (usuario/contraseña del Compose).
+
+**Variables útiles:**
+
+| Variable | Para qué sirve |
+|----------|----------------|
+| `N8N_ENCRYPTION_KEY` | En Docker va en `.env` raíz. En local, el `run-local.bat` ya define una clave de ejemplo (cámbiala y manténla fija si guardas credenciales). |
+| `OPENWEATHER_API_KEY` | Opcional, para ingesta climática ([OpenWeatherMap](https://openweathermap.org/api)). |
+
+Guía paso a paso: **`n8n-workflows/README.md`**.
 
 ---
 
@@ -392,17 +413,22 @@ precision-agriculture/
 ├── ml-service/                        # Python ML Service
 │   ├── Dockerfile
 │   ├── app.py                         # Servidor Flask
+│   ├── run-local.bat                  # Arranque local en Windows
 │   ├── requirements.txt               # Dependencias Python
 │   └── e2e/
 │       └── dashboard.spec.ts          # Tests E2E
 │
-├── n8n-workflows/                     # Automatización
-│   ├── workflow-climate-ingest.json   # Ingesta de datos climáticos
-│   ├── workflow-report-generation.json # Generación de reportes
-│   └── workflow-yield-prediction.json  # Predicción de rendimiento
+├── n8n-workflows/                     # Plantillas + scripts n8n local
+│   ├── README.md
+│   ├── n8n-local.mjs                   # Fusiona .env + arranca / importa workflows
+│   ├── run-local.bat
+│   ├── import-workflows.bat            # CLI import (n8n debe estar cerrado)
+│   ├── workflow-heartbeat.json
+│   └── workflow-climate-ingest.json
 │
 └── Database/                          # Scripts SQL
     ├── create_database.sql
+    ├── init-n8n-database.sql           # CREATE DATABASE n8n (solo init Postgres)
     ├── seed.sql
     ├── datos.sql
     └── seed.ts
@@ -414,14 +440,13 @@ precision-agriculture/
 
 ### 🔐 Autenticación (Auth Module)
 - **Funcionalidades**:
-  - Login y logout
-  - Registro de usuarios (solo admin)
-  - JWT con refresh tokens
+  - Login y registro; **cerrar sesión** redirige al **Dashboard en modo invitado** (navegación limitada sin token)
+  - JWT almacenado en el cliente
   - Control de acceso basado en roles
 - **Endpoints tRPC**:
   - `auth.login(email, password)`
-  - `auth.logout()`
-  - `auth.me()` - Obtener usuario actual
+  - `auth.register(...)` — alta de usuario
+  - `auth.me()` — usuario actual (requiere token)
 
 ### 🏘️ Gestión de Fincas (Farms Module)
 - **Funcionalidades**:
@@ -515,12 +540,11 @@ FRONTEND_URL=http://localhost:3000
 JWT_SECRET=your_jwt_secret_key_here_min_32_chars
 JWT_EXPIRATION=7d
 
-# ML Service
+# ML Service (Compose: ml-service). Desarrollo local: preferir http://127.0.0.1:5000
 ML_SERVICE_URL=http://ml-service:5000
 
-# n8n
-N8N_URL=http://n8n:5678
-N8N_API_KEY=your_n8n_api_key
+# n8n — la API con clave solo hace falta si automatizas export/import por HTTP
+N8N_URL=http://localhost:5678
 
 # Redis
 REDIS_URL=redis://redis:6379
@@ -537,12 +561,13 @@ NEXT_PUBLIC_APP_NAME=AgriPrecision
 NEXT_PUBLIC_APP_VERSION=1.0.0
 ```
 
-### ML Service (.env)
+### ML Service (variables opcionales)
 
 ```ini
-FLASK_ENV=development
-FLASK_DEBUG=True
-API_PORT=5000
+# app.py usa PORT (por defecto 5000) y BIND_HOST (por defecto 127.0.0.1)
+PORT=5000
+FLASK_DEBUG=1
+MODEL_PATH=ruta/opcional/al/modelo.pkl
 ```
 
 ---
@@ -554,9 +579,10 @@ Todos los endpoints están disponibles en `/trpc` y son **type-safe**.
 ### Autenticación
 ```
 POST /trpc/auth.login
-POST /trpc/auth.logout
+POST /trpc/auth.register
 GET  /trpc/auth.me
 ```
+*(El cierre de sesión es en el cliente: se elimina el token y se redirige al Dashboard en modo invitado.)*
 
 ### Fincas
 ```
@@ -780,6 +806,25 @@ FRONTEND_URL=https://tu-dominio.com
    docker-compose logs backend
    ```
 
+### n8n muestra errores de credenciales o no arranca
+
+**Problema**: Tras borrar datos o cambiar máquina, las credenciales guardadas en n8n no funcionan.
+
+**Soluciones**:
+1. **Local (`run-local.bat`):** no borres la carpeta `n8n-workflows/n8n-local-data` sin querer; si cambias `N8N_ENCRYPTION_KEY` en el `.bat`, vuelve a crear credenciales en la UI.
+2. **Docker:** define `N8N_ENCRYPTION_KEY` fijo en `.env` (≥32 caracteres) y `docker compose up -d`. Si falta la base `n8n` en Postgres: `docker compose exec postgres psql -U admin -d postgres -c "CREATE DATABASE n8n;"` y `docker compose restart n8n`.
+3. La credencial Postgres en n8n debe apuntar a **`agricultura_db`** (host `localhost` en local, `postgres` en Compose), no a la base interna de n8n.
+
+### Error al generar predicción / “No se pudo contactar el servicio de ML”
+
+**Problema**: El backend devuelve 502 o el front muestra error al abrir **Predicción**; en consola aparece `TRPCClientError` con mensaje del servicio ML.
+
+**Soluciones**:
+1. Arrancar el **ML service** y dejarlo en ejecución (`ml-service/run-local.bat` o `python app.py` con el venv del proyecto).
+2. Probar en el navegador: `http://127.0.0.1:5000/health` (debe responder JSON). La raíz `GET /` también devuelve JSON con la lista de endpoints.
+3. En `backend/.env`, usar `ML_SERVICE_URL=http://127.0.0.1:5000` en desarrollo local (especialmente en Windows, para evitar `localhost` → IPv6).
+4. Con **Docker Compose**, el hostname del contenedor suele ser `http://ml-service:5000` (desde el backend en la misma red).
+
 ### Contenedores no inician
 
 **Soluciones**:
@@ -821,6 +866,3 @@ Las contribuciones son bienvenidas. Por favor:
 ## 📄 Licencia
 
 Este proyecto está bajo la licencia **MIT**. Consulta [LICENSE](LICENSE) para más detalles.
-10. ✅ **CI/CD pipeline** automatizado
-
-El sistema está **completamente funcional** y listo para producción. Todos los módulos están integrados y probados.

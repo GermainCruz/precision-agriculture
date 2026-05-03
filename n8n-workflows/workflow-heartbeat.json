@@ -1,0 +1,37 @@
+{
+  "name": "AgriPrecision — latido n8n (workflow_ejecucion)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "11111111-aaaa-bbbb-cccc-dddddddddd01",
+      "name": "Probar manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [180, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO workflow_ejecucion (workflow_nombre, inicio_ejecucion, fin_ejecucion, estado, parametros_entrada) VALUES ('n8n-heartbeat-agriprecision', NOW(), NOW(), 'completado', '{\"fuente\":\"n8n\",\"tipo\":\"heartbeat\"}'::jsonb);",
+        "options": {}
+      },
+      "id": "11111111-aaaa-bbbb-cccc-dddddddddd02",
+      "name": "Insertar en workflow_ejecucion",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [420, 300],
+      "credentials": {}
+    }
+  ],
+  "connections": {
+    "Probar manualmente": {
+      "main": [[{ "node": "Insertar en workflow_ejecucion", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [],
+  "active": false,
+  "meta": { "templateCredsSetupCompleted": false }
+}

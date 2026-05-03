@@ -6,6 +6,7 @@
 
 1. [Introducción](#1-introducción)
 2. [Primeros Pasos](#2-primeros-pasos)
+   - [2.4 Modo invitado](#24-modo-invitado)
 3. [Dashboard](#3-dashboard)
 4. [Gestión de Fincas y Lotes](#4-gestión-de-fincas-y-lotes)
 5. [Monitoreo de Cultivos](#5-monitoreo-de-cultivos)
@@ -82,6 +83,12 @@ Al ingresar por primera vez, el sistema te guiará a través de:
 ### 2.3 Pantalla de Inicio
 
 El Dashboard es tu punto de control central.
+
+### 2.4 Modo invitado
+
+Puedes entrar a la aplicación **sin iniciar sesión** y recorrer el menú. En modo invitado verás mensajes que invitan a identificarte en las pantallas que guardan datos de tu cuenta (lotes, riego, reportes, alertas, configuración, etc.). El **Dashboard** muestra una bienvenida orientativa.
+
+**Cerrar sesión** te devuelve al **Dashboard en modo invitado** (ya no tienes token de sesión), no obligatoriamente a la pantalla de inicio de sesión.
 
 ---
 
@@ -285,6 +292,8 @@ Visualización completa:
 ### 7.1 Predicciones de Rendimiento
 
 **Acceso:** Dashboard → Sección "Predicciones"
+
+**Entorno de desarrollo:** las predicciones de rendimiento dependen de un **microservicio ML** (Flask) que debe estar en ejecución. Si no está disponible, la aplicación mostrará un error indicando que no se pudo contactar al servicio; en ese caso hay que arrancar el proyecto del servicio ML y comprobar la URL configurada en el backend (en Windows suele recomendarse `http://127.0.0.1:5000` en lugar de `localhost`). Abrir la raíz del servicio en el navegador puede mostrar un JSON informativo; la ruta **`/health`** confirma que el servicio responde.
 
 El sistema utiliza modelos de machine learning para estimar:
 
@@ -491,6 +500,8 @@ Sí, todos los módulos permiten exportar:
 | No veo mis lotes | Filtro activo | Limpiar filtros |
 | Error al generar PDF | Datos incompletos | Completar datos requeridos |
 | Alertas no llegan | Configuración email | Verificar spam, actualizar email |
+| Error al predecir rendimiento (“no se pudo contactar el servicio de ML”) | Microservicio ML apagado o URL incorrecta | Arrancar el servicio ML; probar `http://127.0.0.1:5000/health`; revisar `ML_SERVICE_URL` en el backend |
+| “Not Found” en la URL del servicio ML (puerto 5000) | Se abrió solo la ruta `/` en un navegador | Normal si no hay página HTML: usar `/` (JSON), `/health` o dejar que la app llame a `/predict/yield` |
 
 ### 10.3 Soporte Técnico
 
@@ -585,7 +596,7 @@ Recursos disponibles:
 
 1. Verificar alertas pendientes
 2. Revisar predicciones para mañana
-3. Cerrar sesión
+3. Cerrar sesión (vuelves al Dashboard en modo invitado)
 
 ---
 
@@ -630,7 +641,7 @@ Recursos disponibles:
 |---------|-------|-----------|
 | 1.0 | Ene 2026 | Lanzamiento inicial |
 | 1.1 | Mar 2026 | Reportes PDF, nuevos gráficos |
-| 1.2 | Actual | Predicciones ML mejoradas |
+| 1.2 | Actual | Predicciones ML mejoradas, plantillas n8n documentadas |
 
 ### 13.2 Próximas Funcionalidades
 
@@ -638,6 +649,16 @@ Recursos disponibles:
 - App móvil con notificaciones push
 - Asistente virtual para recomendaciones
 - API pública para integración con sistemas externos
+
+### 13.3 Automatización con n8n (entorno técnico)
+
+El equipo puede usar **n8n** como orquestador (tareas por horario, ingestión climática externa, etc.) y que escriba en la misma PostgreSQL que AgriPrecision. Funciona **en local sin Docker** (script `n8n-workflows/run-local.bat` + Node.js) o **con Docker Compose**. **No forma parte obligatoria** del manual de usuario hasta que alguien configure flujos y credenciales.
+
+Resumen para quien monta el sistema:
+
+1. Interfaz típica en **http://localhost:5678** (plantilla de desarrollo del proyecto).
+2. Los flujos importados desde `n8n-workflows/` pueden **registrar pruebas** en `workflow_ejecucion` o **añadir lecturas** en `lectura_sensor`, según el JSON activo.
+3. Pasos detallados (local vs Docker, credencial Postgres, OpenWeather) en **`n8n-workflows/README.md`** y resumen en **`README.md`** del proyecto.
 
 ---
 
@@ -647,4 +668,4 @@ Recursos disponibles:
 
 ---
 
-*Manual actualizado: Marzo 2026 — Versión 1.2*
+*Manual actualizado: Mayo 2026 — Versión 1.2*

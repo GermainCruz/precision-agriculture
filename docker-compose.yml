@@ -1,5 +1,9 @@
 version: '3.8'
 
+# Variables opcionales en .env raíz:
+# N8N_ENCRYPTION_KEY (min. ~32 caracteres; estable o las credenciales dejan de funcionar tras reinicios)
+# OPENWEATHER_API_KEY — clima gratuita https://openweathermap.org/api
+
 services:
   postgres:
     image: postgis/postgis:15-3.4
@@ -10,6 +14,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./Database/create_database.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./Database/init-n8n-database.sql:/docker-entrypoint-initdb.d/02-init-n8n-database.sql
     ports:
       - "5432:5432"
     networks:
@@ -28,16 +33,23 @@ services:
       N8N_BASIC_AUTH_ACTIVE: "true"
       N8N_BASIC_AUTH_USER: admin
       N8N_BASIC_AUTH_PASSWORD: admin123
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-dev-n8n-encryption-key-must-be-32-chars-min-change-me}
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://localhost:5678/
+      N8N_SECURE_COOKIE: "false"
+      TZ: UTC
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
-      DB_POSTGRESDB_DATABASE: agricultura_db
+      DB_POSTGRESDB_DATABASE: n8n
       DB_POSTGRESDB_USER: admin
       DB_POSTGRESDB_PASSWORD: secure_password
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY:-}
     ports:
       - "5678:5678"
     volumes:
       - n8n_data:/home/node/.n8n
-      - ./n8n-workflows:/home/node/.n8n/workflows
     networks:
       - agricultura-network
     depends_on:
@@ -52,6 +64,9 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: your_jwt_secret_key
       ML_SERVICE_URL: http://ml-service:5000
+      PORT: 3001
+      NODE_ENV: development
+      FRONTEND_URL: http://localhost:3000
     ports:
       - "3001:3001"
     volumes:

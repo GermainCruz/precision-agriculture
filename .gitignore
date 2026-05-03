@@ -93,6 +93,7 @@ models/__pycache__/
 # n8n
 .n8n/
 n8n_data/
+n8n-workflows/n8n-local-data/
 
 # Temporary files
 tmp/
