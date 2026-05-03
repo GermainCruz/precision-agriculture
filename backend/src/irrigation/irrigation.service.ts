@@ -5,7 +5,8 @@ import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class IrrigationService {
-  private readonly ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://ml-service:5000';
+  private readonly ML_SERVICE_URL =
+    process.env.ML_SERVICE_URL || 'http://127.0.0.1:5000';
 
   constructor(
     private prisma: PrismaService,

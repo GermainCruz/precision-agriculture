@@ -44,7 +44,7 @@ export function Header() {
     localStorage.removeItem('user')
     setUser(null)
     notifyAuthChanged()
-    router.push('/login')
+    router.push('/dashboard')
   }
 
   return (

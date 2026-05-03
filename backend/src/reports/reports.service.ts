@@ -55,6 +55,7 @@ export class ReportsService {
     const lote = await this.prisma.lote.findFirst({
       where: { id: params.loteId, finca: { usuarioId: userId } },
       include: {
+        finca: { select: { nombre: true, ubicacion: true } },
         eventosRiego: {
           where: {
             fechaHora: { gte: params.startDate, lte: params.endDate },
@@ -88,8 +89,16 @@ export class ReportsService {
       0,
     );
 
+    const lecturasSensores = lote.sensores.flatMap((s) => s.lecturas).length;
+
     return {
+      finca: {
+        nombre: lote.finca.nombre,
+        ubicacion: lote.finca.ubicacion ?? '',
+      },
       lote: { nombre: lote.nombre, area: lote.areaHectareas },
+      tipoSuelo: lote.tipoSuelo ?? '—',
+      sensoresInstalados: lote.sensores.length,
       periodo: { inicio: params.startDate, fin: params.endDate },
       cultivo: lote.temporadas[0]?.cultivo?.nombre ?? 'Sin cultivo',
       riego: {
@@ -97,7 +106,7 @@ export class ReportsService {
         volumenTotalM3: totalRiego,
         duracionTotalMinutos: duracionTotalRiego,
       },
-      lecturasSensores: lote.sensores.flatMap((s) => s.lecturas).length,
+      lecturasSensores,
     };
   }
 
@@ -132,6 +141,7 @@ export class ReportsService {
       area: lote.areaHectareas,
       cultivo: lote.temporadas[0]?.cultivo?.nombre ?? 'Sin cultivo',
       rendimientoEstimado: lote.predicciones[0]?.rendimientoEstimadoKgHa ?? null,
+      fechaUltimaPrediccion: lote.predicciones[0]?.fechaPrediccion ?? null,
       eventosRiego: lote.eventosRiego.length,
       volumenRiegoM3: lote.eventosRiego.reduce(
         (sum, e) => sum + Number(e.volumenM3 || 0),
@@ -144,11 +154,22 @@ export class ReportsService {
           : 0,
     }));
 
+    const totales = {
+      areaHa: lotesSummary.reduce((s, l) => s + Number(l.area ?? 0), 0),
+      eventosRiego: lotesSummary.reduce((s, l) => s + l.eventosRiego, 0),
+      volumenM3: lotesSummary.reduce((s, l) => s + l.volumenRiegoM3, 0),
+    };
+
     return {
-      finca: { nombre: finca.nombre, ubicacion: finca.ubicacion },
+      finca: {
+        nombre: finca.nombre,
+        ubicacion: finca.ubicacion ?? '',
+        areaTotalDeclarada: finca.areaHectareas,
+      },
       lotes: lotesSummary,
       totalLotes: finca.lotes.length,
       temporadaFiltrada: params.temporadaId ?? null,
+      totales,
     };
   }
 

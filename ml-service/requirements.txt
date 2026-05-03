@@ -1,6 +1,6 @@
-flask==3.0.0
-numpy==1.26.2
-pandas==2.1.4
-scikit-learn==1.3.2
-joblib==1.3.2
-gunicorn==21.2.0
+# Python 3.13+: usar versiones con ruedas precompiladas (evita MSVC/gcc en Windows).
+flask==3.0.3
+numpy==2.2.6
+scikit-learn==1.6.1
+joblib==1.4.2
+gunicorn==23.0.0
