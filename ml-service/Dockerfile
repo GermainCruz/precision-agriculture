@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-ENV MODEL_PATH=/app/models/ensemble_model.pkl \
+ENV MODEL_PATH=/app/models/ensemble_model.joblib \
     BIND_HOST=0.0.0.0 \
     PORT=5000
 

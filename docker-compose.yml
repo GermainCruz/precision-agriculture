@@ -100,7 +100,7 @@ services:
       context: ./ml-service
       dockerfile: Dockerfile
     environment:
-      MODEL_PATH: /app/models/ensemble_model.pkl
+      MODEL_PATH: /app/models/ensemble_model.joblib
     ports:
       - "5000:5000"
     volumes:

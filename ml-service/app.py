@@ -5,78 +5,14 @@ from typing import Any, Mapping, Optional
 from flask import Flask, request, jsonify
 import joblib
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.model_selection import train_test_split
 import os
+
+from ensemble_model import EnsembleModel
 
 app = Flask(__name__)
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_DEFAULT_MODEL_PATH = os.path.join(_THIS_DIR, "models", "ensemble_model.pkl")
-
-
-class EnsembleModel:
-    def __init__(self):
-        self.models = {
-            "random_forest": RandomForestRegressor(n_estimators=100, random_state=42),
-            "gradient_boosting": GradientBoostingRegressor(n_estimators=100, random_state=42),
-        }
-        self.weights = {"random_forest": 0.5, "gradient_boosting": 0.5}
-        self.is_trained = False
-
-    def train(self, X, y):
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42
-        )
-
-        for name, m in self.models.items():
-            m.fit(X_train, y_train)
-            score = float(m.score(X_test, y_test))
-            self.weights[name] = max(score, 0.01)
-
-        total = sum(self.weights.values())
-        for name in self.weights:
-            self.weights[name] /= total
-
-        self.is_trained = True
-
-    def predict(self, X):
-        if not self.is_trained:
-            raise ValueError("Modelo no entrenado")
-        preds = []
-        for name, m in self.models.items():
-            pred = m.predict(X)
-            preds.append(pred * self.weights[name])
-        return np.sum(preds, axis=0)
-
-    def predict_with_confidence(self, X):
-        if not self.is_trained:
-            raise ValueError("Modelo no entrenado")
-
-        preds = []
-        for name, m in self.models.items():
-            preds.append(np.asarray(m.predict(X), dtype=float).ravel())
-
-        stacked = np.vstack(preds)
-        ensemble = np.dot(
-            np.array([self.weights[n] for n in self.models.keys()]), stacked
-        ).ravel()
-
-        std = np.std(stacked, axis=0)
-
-        ci_low = float(ensemble[0] - 1.96 * std[0])
-        ci_high = float(ensemble[0] + 1.96 * std[0])
-
-        individual = {}
-        for i, name in enumerate(self.models.keys()):
-            individual[name] = float(preds[i][0])
-
-        return {
-            "yield": float(ensemble[0]),
-            "confidence_interval": [ci_low, ci_high],
-            "individual_predictions": individual,
-            "model_weights": {k: float(v) for k, v in self.weights.items()},
-        }
+_DEFAULT_MODEL_PATH = os.path.join(_THIS_DIR, "models", "ensemble_model.joblib")
 
 
 def _float(data: Optional[Mapping[str, Any]], key: str, default: float) -> float:
@@ -89,6 +25,15 @@ def _float(data: Optional[Mapping[str, Any]], key: str, default: float) -> float
         return float(v)
     except (TypeError, ValueError):
         return default
+
+
+def _float_first(data: Optional[Mapping[str, Any]], keys: tuple[str, ...], default: float) -> float:
+    if not data:
+        return default
+    for key in keys:
+        if key in data and data[key] is not None:
+            return _float(data, key, default)
+    return default
 
 
 def _load_or_train_model(model_path: str) -> EnsembleModel:
@@ -106,12 +51,27 @@ def _load_or_train_model(model_path: str) -> EnsembleModel:
 
     os.makedirs(os.path.dirname(model_path) or ".", exist_ok=True)
     ensemble = EnsembleModel()
-    np.random.seed(42)
-    n_samples = 1000
-    X_demo = np.random.randn(n_samples, 7)
-    y_demo = (
-        5000 + 1000 * X_demo[:, 0] + 500 * X_demo[:, 1] + np.random.randn(n_samples) * 200
+    rng = np.random.default_rng(42)
+    n_samples = 2000
+    X_demo = np.column_stack(
+        [
+            rng.uniform(25.0, 95.0, n_samples),
+            rng.uniform(12.0, 38.0, n_samples),
+            rng.uniform(10.0, 120.0, n_samples),
+            rng.uniform(5.0, 80.0, n_samples),
+            rng.uniform(20.0, 200.0, n_samples),
+        ]
     )
+    y_demo = (
+        2500.0
+        + 18.0 * (X_demo[:, 0] - 55.0)
+        - 45.0 * np.abs(X_demo[:, 1] - 24.0)
+        + 11.0 * X_demo[:, 2]
+        + 16.0 * X_demo[:, 3]
+        + 5.5 * X_demo[:, 4]
+        + rng.normal(0.0, 450.0, n_samples)
+    )
+    y_demo = np.clip(y_demo, 400.0, 14000.0)
     ensemble.train(X_demo, y_demo)
     joblib.dump(ensemble, model_path)
     return ensemble
@@ -150,25 +110,35 @@ def predict_yield():
     try:
         data = request.get_json(silent=True) or {}
 
+        # Entrada alineada con train_model.py: humedad, temperatura, N, P, K
         features = np.array(
             [
                 [
-                    _float(data, "crop_type_encoded", 0),
-                    _float(data, "soil_type_encoded", 0),
-                    max(_float(data, "area", 1), 0.01),
-                    _float(data, "avg_temperature", 20),
-                    _float(data, "avg_humidity", 60),
-                    max(_float(data, "total_irrigation", 0), 0),
-                    max(_float(data, "days_after_planting", 0), 0),
+                    _float_first(
+                        data,
+                        ("avg_humidity", "humedad_suelo", "humedad", "soil_moisture"),
+                        60.0,
+                    ),
+                    _float_first(
+                        data,
+                        ("avg_temperature", "temperatura", "temperature"),
+                        24.0,
+                    ),
+                    _float_first(data, ("nitrogen", "nitrogeno", "N"), 50.0),
+                    _float_first(data, ("phosphorus", "fosforo", "P"), 35.0),
+                    _float_first(data, ("potassium", "potasio", "K"), 100.0),
                 ]
             ]
         )
 
         raw = model.predict_with_confidence(features)
 
-        avg_t = _float(data, "avg_temperature", 20)
-        irrig = max(_float(data, "total_irrigation", 0), 0)
-        soil_enc = int(_float(data, "soil_type_encoded", 0))
+        avg_t = _float_first(
+            data, ("avg_temperature", "temperatura", "temperature"), 24.0
+        )
+        hum = _float_first(
+            data, ("avg_humidity", "humedad_suelo", "humedad", "soil_moisture"), 60.0
+        )
 
         out = {
             "yield": raw["yield"],
@@ -177,8 +147,8 @@ def predict_yield():
             "model_weights": raw["model_weights"],
             "factors": {
                 "temperature_impact": 0.3 if avg_t > 25 else -0.2,
-                "irrigation_impact": min(0.5, irrig / 500) if irrig else 0.0,
-                "soil_quality": 0.2 if soil_enc in [0, 1] else 0.1,
+                "humidity_impact": 0.15 if 40 <= hum <= 75 else -0.1,
+                "nutrients_balance": 0.2,
             },
             "model": "ensemble_random_forest_gradient_boosting",
             "accuracy": 0.87,
