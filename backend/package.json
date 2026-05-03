@@ -26,6 +26,7 @@
     "class-validator": "^0.14.0",
     "jsonwebtoken": "^9.0.0",
     "node-cron": "^3.0.0",
+    "pdfkit": "^0.18.0",
     "puppeteer": "^21.0.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0",
@@ -38,6 +39,7 @@
     "@types/bcryptjs": "^2.4.2",
     "@types/jsonwebtoken": "^9.0.0",
     "@types/node": "^20.0.0",
+    "@types/pdfkit": "^0.17.6",
     "prisma": "^5.0.0",
     "ts-node": "^10.9.0",
     "typescript": "^5.1.0"

@@ -75,11 +75,12 @@ export default function ReportesPage() {
     onSuccess: () => { toast({ title: 'Reporte eliminado' }); refetch() },
   })
 
-  const exportJson = api.reports.exportJson.useMutation({
-    onSuccess: (data: { filename: string; contenido: unknown }) => {
-      const blob = new Blob([JSON.stringify(data.contenido, null, 2)], {
-        type: 'application/json;charset=utf-8',
-      })
+  const exportPdf = api.reports.exportPdf.useMutation({
+    onSuccess: (data: { filename: string; pdfBase64: string }) => {
+      const bin = atob(data.pdfBase64)
+      const bytes = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+      const blob = new Blob([bytes], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -88,16 +89,16 @@ export default function ReportesPage() {
       URL.revokeObjectURL(url)
       toast({
         title: 'Descarga lista',
-        description: `Archivo ${data.filename} generado.`,
+        description: `${data.filename} generado.`,
         variant: 'success' as any,
       })
       refetch()
     },
     onError: (err: any) =>
-      toast({ title: 'No se pudo exportar', description: err.message, variant: 'destructive' }),
+      toast({ title: 'No se pudo exportar PDF', description: err.message, variant: 'destructive' }),
   })
 
-  const downloadReportJson = (reportId: string) => exportJson.mutate({ reportId })
+  const downloadReportPdf = (reportId: string) => exportPdf.mutate({ reportId })
 
   const handleGenerate = () => {
     if (genType === 'operacional') {
@@ -230,12 +231,12 @@ export default function ReportesPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          title="Descargar JSON"
+                          title="Descargar PDF"
                           disabled={
-                            exportJson.isLoading &&
-                            exportJson.variables?.reportId === reporte.id
+                            exportPdf.isLoading &&
+                            exportPdf.variables?.reportId === reporte.id
                           }
-                          onClick={() => downloadReportJson(reporte.id)}
+                          onClick={() => downloadReportPdf(reporte.id)}
                         >
                           <Download className="h-4 w-4" />
                         </Button>

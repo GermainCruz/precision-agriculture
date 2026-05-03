@@ -1,4 +1,8 @@
 -- Nombre de la base de datos: agricultura_db
+--
+-- Geografía espacial en columnas JSONB (compatible con Prisma Json).
+-- PostGIS existe para poder usar ST_* al sembrar (p. ej. datos.sql → polígonos como GeoJSON);
+-- el esquema final no usa tipo GEOGRAPHY/GEOMETRY en tablas — no se requiere ningún ALTER adicional.
 
 -- Habilitar extensiones necesarias
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -186,3 +190,7 @@ COMMENT ON TABLE lote IS 'Lotes o parcelas dentro de las fincas';
 COMMENT ON TABLE lectura_sensor IS 'Lecturas históricas de sensores IoT';
 COMMENT ON TABLE prediccion_rendimiento IS 'Predicciones de rendimiento generadas por modelos ML';
 COMMENT ON TABLE alerta IS 'Alertas generadas automáticamente por el sistema';
+
+COMMENT ON COLUMN finca.coordenadas IS 'Punto como JSON: {"lng": number, "lat": number} (WGS84).';
+COMMENT ON COLUMN lote.coordenadas_poligono IS 'Polígono como GeoJSON (objeto Polygon/MultiPolygon) en JSONB.';
+COMMENT ON COLUMN sensor.ubicacion IS 'Punto como JSON: {"lng": number, "lat": number} (WGS84).';

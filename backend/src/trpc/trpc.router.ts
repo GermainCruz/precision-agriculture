@@ -300,8 +300,8 @@ export class TrpcRouter {
         .use(this.trpc.authMiddleware())
         .input(z.object({
           sensorId: z.string(),
-          startDate: z.date(),
-          endDate: z.date(),
+          startDate: z.coerce.date(),
+          endDate: z.coerce.date(),
         }))
         .query(async ({ input, ctx }) => {
           return this.sensorsService.getReadings(
@@ -323,8 +323,8 @@ export class TrpcRouter {
         .use(this.trpc.authMiddleware())
         .input(z.object({
           loteId: z.string(),
-          startDate: z.date(),
-          endDate: z.date(),
+          startDate: z.coerce.date(),
+          endDate: z.coerce.date(),
         }))
         .query(async ({ input, ctx }) => {
           return this.irrigationService.getEvents(
@@ -343,7 +343,7 @@ export class TrpcRouter {
         .use(this.trpc.authMiddleware())
         .input(z.object({
           loteId: z.string(),
-          fechaHora: z.date(),
+          fechaHora: z.coerce.date(),
           duracionMinutos: z.number().positive(),
           tipoRiego: z.enum(['goteo', 'aspersion', 'inundacion', 'subterraneo']),
         }))
@@ -380,8 +380,8 @@ export class TrpcRouter {
         .use(this.trpc.authMiddleware())
         .input(z.object({
           loteId: z.string(),
-          startDate: z.date(),
-          endDate: z.date(),
+          startDate: z.coerce.date(),
+          endDate: z.coerce.date(),
         }))
         .mutation(async ({ input, ctx }) => {
           return this.reportsService.generateOperationalReport(
@@ -410,11 +410,11 @@ export class TrpcRouter {
           return this.reportsService.getDownloadUrl(input.reportId, ctx.user.sub);
         }),
 
-      exportJson: this.trpc.procedure
+      exportPdf: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .input(z.object({ reportId: z.string() }))
         .mutation(async ({ input, ctx }) => {
-          return this.reportsService.exportReportJson(input.reportId, ctx.user.sub);
+          return this.reportsService.exportReportPdf(input.reportId, ctx.user.sub);
         }),
 
       delete: this.trpc.procedure

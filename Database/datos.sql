@@ -1,5 +1,6 @@
 -- Seed data para desarrollo y testing
--- Todos los usuarios comparten la contrasena de prueba: Admin123!
+-- Usuarios: 1 administrador, 2 agricultores, 1 técnico (contraseña común Admin123!)
+-- Datos voluminosos por usuario para interfaces más pobladas (fincas, lotes, sensores, histórico).
 
 BEGIN;
 
@@ -24,7 +25,7 @@ TRUNCATE TABLE
 RESTART IDENTITY CASCADE;
 
 -- =====================================================
--- 1) Roles
+-- 1) Roles del sistema
 -- =====================================================
 WITH datos (num, nombre, descripcion, created_at) AS (
 	VALUES
@@ -41,22 +42,58 @@ SELECT
 FROM datos;
 
 -- =====================================================
--- 2) Usuarios
+-- 2) Usuarios — 101 admin · 102–103 agricultores · 104 técnico
 -- =====================================================
 WITH datos (num, email, nombre, apellido, telefono, rol_num, activo, ultimo_acceso, created_at, updated_at) AS (
 	VALUES
-		(101, 'admin@agriprecision.com',   'Ana',       'Torres',   '3005550101', 1, true,  TIMESTAMP '2026-04-30 09:00:00', TIMESTAMP '2026-04-01 09:00:00', TIMESTAMP '2026-04-01 10:00:00'),
-		(102, 'luis.medina@agriprecision.com', 'Luis',   'Medina',   '3005550102', 2, true,  TIMESTAMP '2026-04-29 17:10:00', TIMESTAMP '2026-04-01 09:20:00', TIMESTAMP '2026-04-01 10:20:00'),
-		(103, 'paula.rojas@agriprecision.com', 'Paula',   'Rojas',    '3005550103', 2, true,  TIMESTAMP '2026-04-28 14:30:00', TIMESTAMP '2026-04-01 09:40:00', TIMESTAMP '2026-04-01 10:40:00'),
-		(104, 'carlos.gomez@agriprecision.com', 'Carlos', 'Gomez',    '3005550104', 3, true,  TIMESTAMP '2026-04-29 08:45:00', TIMESTAMP '2026-04-01 10:00:00', TIMESTAMP '2026-04-01 11:00:00'),
-		(105, 'marta.herrera@agriprecision.com', 'Marta', 'Herrera',  '3005550105', 2, true,  TIMESTAMP '2026-04-27 13:15:00', TIMESTAMP '2026-04-01 10:20:00', TIMESTAMP '2026-04-01 11:20:00'),
-		(106, 'diego.perez@agriprecision.com',  'Diego',   'Perez',    '3005550106', 3, true,  TIMESTAMP '2026-04-28 18:05:00', TIMESTAMP '2026-04-01 10:40:00', TIMESTAMP '2026-04-01 11:40:00'),
-		(107, 'sofia.ramirez@agriprecision.com','Sofia',   'Ramirez',  NULL,          2, true,  TIMESTAMP '2026-04-26 12:25:00', TIMESTAMP '2026-04-01 11:00:00', TIMESTAMP '2026-04-01 12:00:00'),
-		(108, 'andres.silva@agriprecision.com', 'Andres',   'Silva',    '3005550108', 3, true,  TIMESTAMP '2026-04-29 07:40:00', TIMESTAMP '2026-04-01 11:20:00', TIMESTAMP '2026-04-01 12:20:00'),
-		(109, 'valentina.ruiz@agriprecision.com','Valentina','Ruiz',    '3005550109', 2, true,  TIMESTAMP '2026-04-25 15:50:00', TIMESTAMP '2026-04-01 11:40:00', TIMESTAMP '2026-04-01 12:40:00'),
-		(110, 'jorge.castillo@agriprecision.com','Jorge',   'Castillo', '3005550110', 1, true,  TIMESTAMP '2026-04-30 06:55:00', TIMESTAMP '2026-04-01 12:00:00', TIMESTAMP '2026-04-01 13:00:00'),
-		(111, 'laura.moreno@agriprecision.com',  'Laura',   'Moreno',   '3005550111', 3, true,  TIMESTAMP '2026-04-24 09:10:00', TIMESTAMP '2026-04-01 12:20:00', TIMESTAMP '2026-04-01 13:20:00'),
-		(112, 'felipe.vargas@agriprecision.com',  'Felipe',  'Vargas',   '3005550112', 2, false, NULL,                                  TIMESTAMP '2026-04-01 12:40:00', TIMESTAMP '2026-04-01 13:40:00')
+		(
+			101,
+			'admin@agriprecision.com',
+			'Ana Lucia',
+			'García de la Torre',
+			'+57 310 889 4421',
+			1,
+			true,
+			TIMESTAMP '2026-04-28 14:22:00',
+			TIMESTAMP '2025-11-10 09:30:00',
+			TIMESTAMP '2026-04-01 09:45:00'
+		),
+		(
+			102,
+			'luis.medina@camporico.co',
+			'Luis Eduardo',
+			'Medina Oviedo',
+			'+57 311 204 9932',
+			2,
+			true,
+			TIMESTAMP '2026-04-30 06:58:00',
+			TIMESTAMP '2026-03-08 07:45:00',
+			TIMESTAMP '2026-04-02 08:40:00'
+		),
+		(
+			103,
+			'paula.rojas.verde.agro@gmail.com',
+			'Paula Andrea',
+			'Rojas Marin',
+			'+57 320 551 0876',
+			2,
+			true,
+			TIMESTAMP '2026-04-29 21:03:00',
+			TIMESTAMP '2026-03-02 06:55:00',
+			TIMESTAMP '2026-04-02 09:10:00'
+		),
+		(
+			104,
+			'carlos.gomez@servitecnicarural.org',
+			'Carlos Andres',
+			'Gomez Ruiz',
+			'+57 316 774 0198',
+			3,
+			true,
+			TIMESTAMP '2026-04-30 11:15:00',
+			TIMESTAMP '2026-06-01 08:05:00',
+			TIMESTAMP '2026-04-03 07:55:00'
+		)
 )
 INSERT INTO usuario (id, email, password_hash, nombre, apellido, telefono, rol_id, activo, ultimo_acceso, created_at, updated_at)
 SELECT
@@ -74,22 +111,25 @@ SELECT
 FROM datos;
 
 -- =====================================================
--- 3) Fincas
+-- 3) Fincas — 15 fincas (102 y 103 con mayor cartera); admin y técnico con predios de referencia
 -- =====================================================
 WITH datos (num, nombre, ubicacion, area_hectareas, lon, lat, usuario_num, created_at, updated_at) AS (
 	VALUES
-		(201, 'Finca El Horizonte',      'Zipaquira, Cundinamarca',        18.50, -74.0721,  4.7110, 101, TIMESTAMP '2026-04-02 08:00:00', TIMESTAMP '2026-04-02 09:00:00'),
-		(202, 'Hacienda La Esperanza',   'Rionegro, Antioquia',            24.80, -75.5636,  6.2518, 102, TIMESTAMP '2026-04-02 08:20:00', TIMESTAMP '2026-04-02 09:20:00'),
-		(203, 'Agropecuaria La Ceiba',   'Palmira, Valle del Cauca',       32.10, -76.3048,  3.5390, 103, TIMESTAMP '2026-04-02 08:40:00', TIMESTAMP '2026-04-02 09:40:00'),
-		(204, 'Finca Los Laureles',      'Ibague, Tolima',                 16.75, -75.2322,  4.4447, 104, TIMESTAMP '2026-04-02 09:00:00', TIMESTAMP '2026-04-02 10:00:00'),
-		(205, 'Granja San Isidro',       'Neiva, Huila',                   21.40, -75.2819,  2.9350, 105, TIMESTAMP '2026-04-02 09:20:00', TIMESTAMP '2026-04-02 10:20:00'),
-		(206, 'Hacienda El Manantial',   'Villavicencio, Meta',            45.30, -73.6259,  4.1420, 106, TIMESTAMP '2026-04-02 09:40:00', TIMESTAMP '2026-04-02 10:40:00'),
-		(207, 'Finca Las Brisas',        'Bucaramanga, Santander',         14.90, -73.1198,  7.1193, 107, TIMESTAMP '2026-04-02 10:00:00', TIMESTAMP '2026-04-02 11:00:00'),
-		(208, 'AgroCampo El Roble',      'Tunja, Boyaca',                  28.60, -73.3678,  5.5353, 108, TIMESTAMP '2026-04-02 10:20:00', TIMESTAMP '2026-04-02 11:20:00'),
-		(209, 'Finca La Victoria',       'Popayan, Cauca',                 37.20, -76.6132,  2.4448, 109, TIMESTAMP '2026-04-02 10:40:00', TIMESTAMP '2026-04-02 11:40:00'),
-		(210, 'Predio Los Naranjos',     'Valledupar, Cesar',              52.80, -73.2532, 10.4631, 110, TIMESTAMP '2026-04-02 11:00:00', TIMESTAMP '2026-04-02 12:00:00'),
-		(211, 'Finca Buenavista',        'Pasto, Narino',                  19.60, -77.2811,  1.2136, 111, TIMESTAMP '2026-04-02 11:20:00', TIMESTAMP '2026-04-02 12:20:00'),
-		(212, 'Finca Santa Clara',       'Monteria, Cordoba',              41.10, -75.8814,  8.7479, 112, TIMESTAMP '2026-04-02 11:40:00', TIMESTAMP '2026-04-02 12:40:00')
+		(201, 'Corporativo Centro Monitoreo PN',           'Sesquicentenario, Bucaramanga, Santander',   42.75, -73.1204,   7.1192,   101, TIMESTAMP '2025-11-12 07:45:00', TIMESTAMP '2026-04-10 09:05:00'),
+		(202, 'Laboratorio territorial Agriprecision',     'Km 4 Siberia-Cota, Cundinamarca',           68.40, -74.0432,   4.7621,   101, TIMESTAMP '2025-12-01 06:55:00', TIMESTAMP '2026-04-12 07:59:00'),
+		(203, 'Los Arrayanes — Maiz tolerante sequia',       'Sabana de Torres, Santander',                156.90, -73.5062,   7.3954,   102, TIMESTAMP '2026-01-07 06:43:00', TIMESTAMP '2026-04-16 06:54:00'),
+		(204, 'Los Arrayanes Norte — Pivot y goteo',       'Sabana de Torres, Santander',                224.05, -73.4888,   7.4121,   102, TIMESTAMP '2026-02-07 06:53:00', TIMESTAMP '2026-04-09 06:53:00'),
+		(205, 'Santa Helena — Aguacate y tomate tunnel',    'Fredonia, Antioquia',                        92.33, -75.6782,   6.0588,   102, TIMESTAMP '2026-01-07 06:53:00', TIMESTAMP '2026-04-19 06:53:00'),
+		(206, 'Laguna Verde — Arroz temporada seca/humeda', 'Palmira, Valle del Cauca',                   310.67, -76.3012,   3.5512,   102, TIMESTAMP '2025-06-06 06:53:00', TIMESTAMP '2026-04-20 06:53:00'),
+		(207, 'El Vergel Cafetero altitude media',       'La Plata, Huila',                            138.05, -75.8901,   2.3887,   102, TIMESTAMP '2025-06-06 06:53:00', TIMESTAMP '2026-03-06 06:53:00'),
+		(208, 'Brisas del Cauca — Papa y hortalias',       'Morales, Cauca',                             205.88, -76.6301,   2.4544,   103, TIMESTAMP '2025-09-06 06:53:00', TIMESTAMP '2026-04-14 06:53:00'),
+		(209, 'Cordillera Alta — Papa semilla certificada', 'Silvia, Cauca',                              174.62, -76.8804,   2.6121,   103, TIMESTAMP '2025-11-06 06:53:00', TIMESTAMP '2026-04-15 06:53:00'),
+		(210, 'Llano Bajio — Banana y cacao asociativo',    'Santa Rosa del Sur, Bolivar',                389.41, -74.8901,   6.7432,   103, TIMESTAMP '2024-06-06 06:53:00', TIMESTAMP '2026-04-06 06:53:00'),
+		(211, 'Meta Sur — Ganaderia mejorada riego pivote','Castilla la Nueva, Meta',                     442.07, -73.6932,   4.6298,   103, TIMESTAMP '2026-06-06 06:53:00', TIMESTAMP '2026-04-17 06:53:00'),
+		(212, 'Orinoquia Centro — Sesamo y sistema mixto','Yopal, Casanare',                            528.93, -72.3987,   5.3376,   103, TIMESTAMP '2026-06-06 06:53:00', TIMESTAMP '2026-04-18 06:53:00'),
+		(213, 'Cuenca Alta Rio Opón — Soporte zonificacion','Barbosa, Santander',                        188.74, -73.6132,   5.9321,   104, TIMESTAMP '2026-05-06 06:53:00', TIMESTAMP '2026-04-11 06:53:00'),
+		(214, 'Valle Medio Magdalena Norte — Auditoria uso agua','Aguazul, Casanare',              356.41, -72.5521,   5.1743,   104, TIMESTAMP '2026-05-06 06:53:00', TIMESTAMP '2026-04-12 06:53:00'),
+		(215, 'Macizo fluvial Sogamoso — Sensores comunales','Sabana del Torre, Norte de Santander',     267.82, -72.2455,   7.8491,   104, TIMESTAMP '2026-05-06 06:53:00', TIMESTAMP '2026-04-21 06:53:00')
 )
 INSERT INTO finca (id, nombre, ubicacion, area_hectareas, coordenadas, usuario_id, created_at, updated_at)
 SELECT
@@ -97,93 +137,107 @@ SELECT
 	nombre,
 	ubicacion,
 	area_hectareas,
-	json_build_object('lng', lon::float, 'lat', lat::float)::jsonb,
+	json_build_object('lng', lon::double precision, 'lat', lat::double precision)::jsonb,
 	format('00000000-0000-0000-0000-%s', lpad(to_hex(usuario_num), 12, '0'))::uuid,
 	created_at,
 	updated_at
 FROM datos;
 
 -- =====================================================
--- 4) Lotes
+-- 4) Lotes — 60 lotes (4 × 15 fincas), sin random() reproducible en cada carga
 -- =====================================================
-WITH datos (num, nombre, area_hectareas, tipo_suelo, finca_num, lon, lat, created_at, updated_at) AS (
-	VALUES
-		(301, 'Lote Norte A',      2.40, 'arcilloso', 201, -74.0800,  4.7160, TIMESTAMP '2026-04-03 08:00:00', TIMESTAMP '2026-04-03 09:00:00'),
-		(302, 'Lote Sur A',        3.10, 'franco',    201, -74.0620,  4.7050, TIMESTAMP '2026-04-03 08:10:00', TIMESTAMP '2026-04-03 09:10:00'),
-		(303, 'Bloque A',          4.20, 'arenoso',   202, -75.5700,  6.2580, TIMESTAMP '2026-04-03 08:20:00', TIMESTAMP '2026-04-03 09:20:00'),
-		(304, 'Bloque B',          3.80, 'limoso',    202, -75.5520,  6.2450, TIMESTAMP '2026-04-03 08:30:00', TIMESTAMP '2026-04-03 09:30:00'),
-		(305, 'Parcela 1',         5.10, 'franco',    203, -76.3130,  3.5450, TIMESTAMP '2026-04-03 08:40:00', TIMESTAMP '2026-04-03 09:40:00'),
-		(306, 'Parcela 2',         4.70, 'arcilloso', 203, -76.2960,  3.5320, TIMESTAMP '2026-04-03 08:50:00', TIMESTAMP '2026-04-03 09:50:00'),
-		(307, 'Sector Oeste',      2.80, 'arenoso',   204, -75.2450,  4.4520, TIMESTAMP '2026-04-03 09:00:00', TIMESTAMP '2026-04-03 10:00:00'),
-		(308, 'Sector Este',       2.90, 'franco',    204, -75.2230,  4.4380, TIMESTAMP '2026-04-03 09:10:00', TIMESTAMP '2026-04-03 10:10:00'),
-		(309, 'Modulo 1',          6.30, 'limoso',    205, -75.2900,  2.9420, TIMESTAMP '2026-04-03 09:20:00', TIMESTAMP '2026-04-03 10:20:00'),
-		(310, 'Modulo 2',          5.80, 'arcilloso', 205, -75.2740,  2.9280, TIMESTAMP '2026-04-03 09:30:00', TIMESTAMP '2026-04-03 10:30:00'),
-		(311, 'Unidad 3',          4.00, 'franco',    206, -73.6330,  4.1480, TIMESTAMP '2026-04-03 09:40:00', TIMESTAMP '2026-04-03 10:40:00'),
-		(312, 'Unidad 4',          3.90, 'arenoso',   206, -73.6170,  4.1370, TIMESTAMP '2026-04-03 09:50:00', TIMESTAMP '2026-04-03 10:50:00'),
-		(313, 'Lote Bajo',         7.10, 'limoso',    207, -73.1250,  7.1260, TIMESTAMP '2026-04-03 10:00:00', TIMESTAMP '2026-04-03 11:00:00'),
-		(314, 'Lote Alto',         6.60, 'franco',    208, -73.1180,  7.1070, TIMESTAMP '2026-04-03 10:10:00', TIMESTAMP '2026-04-03 11:10:00'),
-		(315, 'Lote Central',      8.40, 'arcilloso', 209, -76.6200,  2.4510, TIMESTAMP '2026-04-03 10:20:00', TIMESTAMP '2026-04-03 11:20:00'),
-		(316, 'Lote Semillero',    1.90, 'arenoso',   210, -76.6050,  2.4370, TIMESTAMP '2026-04-03 10:30:00', TIMESTAMP '2026-04-03 11:30:00'),
-		(317, 'Lote Ensayo',       2.20, 'franco',    211, -77.2870,  1.2200, TIMESTAMP '2026-04-03 10:40:00', TIMESTAMP '2026-04-03 11:40:00'),
-		(318, 'Lote Reserva',      3.30, 'limoso',    212, -75.8720,  8.7390, TIMESTAMP '2026-04-03 10:50:00', TIMESTAMP '2026-04-03 11:50:00')
+WITH fincas AS (
+	SELECT num, nombre, lon, lat, ca, ua FROM (VALUES
+		(201, 'Corporativo Centro Monitoreo PN',           -73.1204::double precision, 7.1192::double precision, TIMESTAMP '2025-11-12 07:45:00', TIMESTAMP '2026-04-10 09:05:00'),
+		(202, 'Laboratorio territorial Agriprecision',     -74.0432::double precision, 4.7621::double precision, TIMESTAMP '2025-12-01 06:55:00', TIMESTAMP '2026-04-12 07:59:00'),
+		(203, 'Los Arrayanes — Maíz tolerante a sequía',       -73.5062,  7.3954, TIMESTAMP '2026-01-07 06:43:00', TIMESTAMP '2026-04-16 06:54:00'),
+		(204, 'Los Arrayanes Norte — Pivots y complemento', -73.4888,  7.4121, TIMESTAMP '2026-02-07 06:53:00', TIMESTAMP '2026-04-09 06:53:00'),
+		(205, 'Santa Helena — Aguacate y tomate tunelados', -75.6782,  6.0588, TIMESTAMP '2026-01-07 06:53:00', TIMESTAMP '2026-04-19 06:53:00'),
+		(206, 'Laguna Verde — Arroz temporada seca/húmeda', -76.3012,  3.5512, TIMESTAMP '2025-06-06 06:53:00', TIMESTAMP '2026-04-20 06:53:00'),
+		(207, 'El Vergel — Café altitud media',       -75.8901,  2.3887, TIMESTAMP '2025-06-06 06:53:00', TIMESTAMP '2026-03-06 06:53:00'),
+		(208, 'Brisas del Cauca — Papa y hortícolas',       -76.6301,  2.4544, TIMESTAMP '2025-09-06 06:53:00', TIMESTAMP '2026-04-14 06:53:00'),
+		(209, 'Cordillera Alta — Papa semilla certificada', -76.8804,  2.6121, TIMESTAMP '2025-11-06 06:53:00', TIMESTAMP '2026-04-15 06:53:00'),
+		(210, 'Llano Bajío — Banana y cacao asociativo',    -74.8901,  6.7432, TIMESTAMP '2024-06-06 06:53:00', TIMESTAMP '2026-04-06 06:53:00'),
+		(211, 'Meta Sur — Integración pivote ganadería', -73.6932,  4.6298, TIMESTAMP '2026-06-06 06:53:00', TIMESTAMP '2026-04-17 06:53:00'),
+		(212, 'Orinoquia Centro — Sésamo y rotación corta', -72.3987,  5.3376, TIMESTAMP '2026-06-06 06:53:00', TIMESTAMP '2026-04-18 06:53:00'),
+		(213, 'Cuenca alta Río Opón — Soporte zonificación', -73.6132,  5.9321, TIMESTAMP '2026-05-06 06:53:00', TIMESTAMP '2026-04-11 06:53:00'),
+		(214, 'Valle medio Magdalena — Auditoría agua', -72.5521,  5.1743, TIMESTAMP '2026-05-06 06:53:00', TIMESTAMP '2026-04-12 06:53:00'),
+		(215, 'Macizo Sogamoso — Sensores comunales', -72.2455,  7.8491, TIMESTAMP '2026-05-06 06:53:00', TIMESTAMP '2026-04-21 06:53:00')
+	) AS q(num, nombre, lon, lat, ca, ua)
+),
+slots AS (
+	SELECT
+		ROW_NUMBER() OVER (ORDER BY f.num, g.n)::int AS seq,
+		f.num AS finca_num,
+		g.n::int AS celda,
+		f.lon + ((g.n - 2.25) * 0.015)::double precision AS lon,
+		f.lat + ((g.n - 2.5) * 0.018)::double precision AS lat,
+		(ARRAY['arcilloso', 'arenoso', 'limoso', 'franco', 'orgánico'])[
+			1 + mod(((f.num + g.n)::int), 5)
+		] AS tipo_suelo,
+		(round((5.05 + ((((f.num * 17 + g.n * 9) % 35))::numeric * 0.17)), 2))::numeric(10, 2) AS area_ha,
+		f.ca AS created_at,
+		f.ua AS updated_at
+	FROM fincas f
+	CROSS JOIN LATERAL generate_series(1, 4) AS g(n)
 )
 INSERT INTO lote (id, nombre, area_hectareas, tipo_suelo, coordenadas_poligono, finca_id, created_at, updated_at)
 SELECT
-	format('00000000-0000-0000-0000-%s', lpad(to_hex(num), 12, '0'))::uuid,
-	nombre,
-	area_hectareas,
-	tipo_suelo,
+	format('00000000-0000-0000-0000-%s', lpad(to_hex(300 + seq), 12, '0'))::uuid,
+	format('Sector %s · celda %s', finca_num::text, celda::text),
+	area_ha,
+	tipo_suelo::varchar(50),
 	(ST_AsGeoJSON(
-		ST_MakeEnvelope(lon - 0.008, lat - 0.008, lon + 0.008, lat + 0.008, 4326)::geometry
+		ST_MakeEnvelope(lon - 0.006, lat - 0.006, lon + 0.006, lat + 0.006, 4326)::geometry
 	)::json)::jsonb,
 	format('00000000-0000-0000-0000-%s', lpad(to_hex(finca_num), 12, '0'))::uuid,
 	created_at,
 	updated_at
-FROM datos;
+FROM slots;
 
 -- =====================================================
--- 5) Cultivos
+-- 5) Cultivos — catálogo más descriptivo (IDs 401–410)
 -- =====================================================
 WITH datos (num, nombre, variedad, ciclo_dias, requerimiento_agua_mm, temperatura_optima, humedad_optima) AS (
 	VALUES
-		(401, 'Maiz Amarillo',   'Hibrido 30F35',    120,  520.00, 24.5, 65),
-		(402, 'Cafe Arabe',      'Castillo Mejorado', 720, 850.00, 20.0, 75),
-		(403, 'Arroz F1',        'Corte Alto',       110,  650.00, 28.0, 70),
-		(404, 'Papa Pastusa',    'Pastusa Suprema',  150,  500.00, 15.0, 80),
-		(405, 'Cacao Fino',      'Trinitario',       900, 950.00, 26.0, 78),
-		(406, 'Tomate Chonto',   'Rio Grande',       110,  450.00, 22.0, 60),
-		(407, 'Aguacate Hass',   'Hass Premium',     800, 900.00, 18.5, 68),
-		(408, 'Banano',          'Cavendish',        365, 990.00, 27.0, 75),
-		(409, 'Fresa',           'San Andreas',      150,  400.00, 17.0, 85),
-		(410, 'Cebolla Larga',   'Larga de Rama',    130,  350.00, 19.0, 70)
+		(401, 'Maíz amarillo híbrido', 'DKC 6972',                    118,  515.00, 24.2, 64),
+		(402, 'Café arábigo',           'Castillo CL 14',              728,  845.00, 19.6, 76),
+		(403, 'Arroz F1 ciclo medio',    'Fedearroz 677',               112,  642.00, 27.4, 69),
+		(404, 'Papa Pastusa mejorada',  'Diacol Capira Suprema',       148,  498.00, 15.1, 82),
+		(405, 'Cacao fino de aroma',     'ICS 95 Trinidad',             892,  938.00, 26.4, 78),
+		(406, 'Tomate chonto vid',       'Roma Plus HID-14',           108,  438.00, 22.0, 59),
+		(407, 'Aguacate Hass',           'Lamb Hass / Choquette',       782,  905.00, 18.2, 66),
+		(408, 'Banano Cavendish export','Grande nueve FHIA-23',      362,  985.00, 27.8, 74),
+		(409, 'Fresa día neutro',        'San Andreas PLUS',           154,  392.00, 17.2, 86),
+		(410, 'Sésamo orinoquia',       'Sesaco 668',                  132,  318.00, 28.0, 55)
 )
 INSERT INTO cultivo (id, nombre, variedad, ciclo_dias, requerimiento_agua_mm, temperatura_optima, humedad_optima)
 SELECT
 	format('00000000-0000-0000-0000-%s', lpad(to_hex(num), 12, '0'))::uuid,
-	nombre,
-	variedad,
+	nombre::varchar(100),
+	variedad::varchar(100),
 	ciclo_dias,
 	requerimiento_agua_mm,
-	temperatura_optima,
+	temperatura_optima::numeric(4, 1),
 	humedad_optima
 FROM datos;
 
 -- =====================================================
--- 6) Temporadas
+-- 6) Temporadas — una fila por lote (IDs 501–560)
 -- =====================================================
 WITH base AS (
 	SELECT
-		gs AS seq,
-		301 + ((gs - 1) % 18) AS lote_num,
-		401 + ((gs - 1) % 10) AS cultivo_num,
-		DATE '2025-12-01' + ((gs - 1) * 12) AS fecha_siembra,
+		seq,
+		300 + seq AS lote_num,
+		401 + ((seq - 1) % 10) AS cultivo_num,
+		(DATE '2025-06-03' + (seq * 2))::date AS fecha_siembra,
 		CASE
-			WHEN gs IN (1, 5, 10) THEN 'planificado'
-			WHEN gs IN (3, 6, 9, 12, 15) THEN 'cosechado'
-			WHEN gs IN (4, 8, 13) THEN 'fallido'
+			WHEN seq % 9 = 0 THEN 'planificado'
+			WHEN seq % 7 = 0 THEN 'cosechado'
+			WHEN seq % 11 = 0 THEN 'fallido'
 			ELSE 'activo'
 		END AS estado,
-		CASE 401 + ((gs - 1) % 10)
+		CASE 401 + ((seq - 1) % 10)
 			WHEN 401 THEN 120
 			WHEN 402 THEN 720
 			WHEN 403 THEN 110
@@ -194,8 +248,9 @@ WITH base AS (
 			WHEN 408 THEN 365
 			WHEN 409 THEN 150
 			WHEN 410 THEN 130
+			ELSE 120
 		END AS ciclo_dias
-	FROM generate_series(1, 15) AS gs
+	FROM generate_series(1, 60) AS seq
 )
 INSERT INTO temporada (id, cultivo_id, lote_id, fecha_siembra, fecha_cosecha_estimada, fecha_cosecha_real, estado, created_at)
 SELECT
@@ -204,49 +259,56 @@ SELECT
 	format('00000000-0000-0000-0000-%s', lpad(to_hex(lote_num), 12, '0'))::uuid,
 	fecha_siembra,
 	fecha_siembra + ciclo_dias,
-	CASE
-		WHEN estado = 'cosechado' THEN fecha_siembra + (ciclo_dias - 7)
-		ELSE NULL
-	END,
+	CASE WHEN estado = 'cosechado' THEN fecha_siembra + (ciclo_dias - 9) ELSE NULL END,
 	estado,
-	TIMESTAMP '2026-04-04 08:00:00' + ((seq - 1) * INTERVAL '3 hours')
+	TIMESTAMP '2026-04-04 08:00:00' + ((seq - 1) * INTERVAL '45 minutes')
 FROM base;
 
 -- =====================================================
--- 7) Sensores
+-- 7) Sensores — 120 equipos (2 por cada uno de los 60 lotes, IDs 601–720)
 -- =====================================================
-WITH datos (num, codigo, tipo, lote_num, lon, lat, instalado_en, ultimo_mantenimiento, activo) AS (
-	VALUES
-		(601, 'SEN-CLM-001', 'clima',       301, -74.0790,  4.7155, TIMESTAMP '2026-03-02 07:10:00', TIMESTAMP '2026-04-20 09:00:00', true),
-		(602, 'SEN-SUE-002', 'suelo',       302, -74.0630,  4.7045, TIMESTAMP '2026-03-03 07:20:00', TIMESTAMP '2026-04-19 09:00:00', true),
-		(603, 'SEN-HUM-003', 'humedad',     303, -75.5690,  6.2570, TIMESTAMP '2026-03-04 07:30:00', TIMESTAMP '2026-04-18 09:30:00', true),
-		(604, 'SEN-TMP-004', 'temperatura', 304, -75.5510,  6.2440, TIMESTAMP '2026-03-05 07:40:00', TIMESTAMP '2026-04-17 10:00:00', true),
-		(605, 'SEN-CLM-005', 'clima',       305, -76.3120,  3.5440, TIMESTAMP '2026-03-06 07:50:00', TIMESTAMP '2026-04-16 10:00:00', true),
-		(606, 'SEN-SUE-006', 'suelo',       306, -76.2970,  3.5310, TIMESTAMP '2026-03-07 08:00:00', TIMESTAMP '2026-04-15 10:30:00', true),
-		(607, 'SEN-HUM-007', 'humedad',     307, -75.2440,  4.4510, TIMESTAMP '2026-03-08 08:10:00', TIMESTAMP '2026-04-14 10:30:00', true),
-		(608, 'SEN-TMP-008', 'temperatura', 308, -75.2220,  4.4370, TIMESTAMP '2026-03-09 08:20:00', TIMESTAMP '2026-04-13 11:00:00', true),
-		(609, 'SEN-CLM-009', 'clima',       309, -75.2890,  2.9410, TIMESTAMP '2026-03-10 08:30:00', TIMESTAMP '2026-04-12 11:00:00', true),
-		(610, 'SEN-SUE-010', 'suelo',       310, -75.2730,  2.9270, TIMESTAMP '2026-03-11 08:40:00', TIMESTAMP '2026-04-11 11:30:00', true),
-		(611, 'SEN-HUM-011', 'humedad',     311, -73.6320,  4.1470, TIMESTAMP '2026-03-12 08:50:00', TIMESTAMP '2026-04-10 11:30:00', true),
-		(612, 'SEN-TMP-012', 'temperatura', 312, -73.6160,  4.1360, TIMESTAMP '2026-03-13 09:00:00', TIMESTAMP '2026-04-09 12:00:00', true),
-		(613, 'SEN-CLM-013', 'clima',       313, -73.1240,  7.1250, TIMESTAMP '2026-03-14 09:10:00', TIMESTAMP '2026-04-08 12:00:00', true),
-		(614, 'SEN-SUE-014', 'suelo',       314, -73.1170,  7.1060, TIMESTAMP '2026-03-15 09:20:00', TIMESTAMP '2026-04-07 12:30:00', false),
-		(615, 'SEN-HUM-015', 'humedad',     315, -76.6190,  2.4500, TIMESTAMP '2026-03-16 09:30:00', TIMESTAMP '2026-04-06 12:30:00', false)
+WITH parejas AS (
+	SELECT
+		300 + l.n AS lote_num,
+		g.tipo,
+		g.dx
+	FROM generate_series(1, 60) AS l(n)
+	CROSS JOIN LATERAL (
+		VALUES
+			('clima'::varchar(50), 1),
+			('suelo'::varchar(50), 2)
+	) AS g(tipo, dx)
+),
+enumerado AS (
+	SELECT
+		ROW_NUMBER() OVER (ORDER BY lote_num, dx)::int AS rn,
+		lote_num,
+		tipo
+	FROM parejas
 )
 INSERT INTO sensor (id, codigo, tipo, ubicacion, lote_id, instalado_en, ultimo_mantenimiento, activo)
 SELECT
-	format('00000000-0000-0000-0000-%s', lpad(to_hex(num), 12, '0'))::uuid,
-	codigo,
+	format('00000000-0000-0000-0000-%s', lpad(to_hex(600 + rn), 12, '0'))::uuid,
+	format('SENS-%s-%s',
+		CASE tipo
+			WHEN 'clima' THEN 'CLM' WHEN 'suelo' THEN 'SUE'
+			WHEN 'humedad' THEN 'HUM' ELSE 'TMP'
+		END,
+		LPAD(rn::text, 4, '0')
+	),
 	tipo,
-	json_build_object('lng', lon::float, 'lat', lat::float)::jsonb,
+	json_build_object(
+		'lng', (-73.0 + ((((rn % 120))::numeric) * 0.04))::double precision,
+		'lat', (2.8 + ((((rn % 90))::numeric) * 0.035))::double precision
+	)::jsonb,
 	format('00000000-0000-0000-0000-%s', lpad(to_hex(lote_num), 12, '0'))::uuid,
-	instalado_en,
-	ultimo_mantenimiento,
-	activo
-FROM datos;
+	TIMESTAMP '2025-06-07 06:05:00' + ((rn - 1) * INTERVAL '3 hours'),
+	TIMESTAMP '2026-04-18 08:00:00' - ((rn % 31) * INTERVAL '1 day'),
+	(rn % 13 <> 0)
+FROM enumerado;
 
 -- =====================================================
--- 8) Lecturas de sensores
+-- 8) Lecturas — 320 muestras (histórico denso últimas semanas)
 -- =====================================================
 INSERT INTO lectura_sensor (
 	id,
@@ -262,29 +324,29 @@ INSERT INTO lectura_sensor (
 	created_at
 )
 SELECT
-	format('00000000-0000-0000-0000-%s', lpad(to_hex(700 + gs), 12, '0'))::uuid,
-	format('00000000-0000-0000-0000-%s', lpad(to_hex(601 + ((gs - 1) % 15)), 12, '0'))::uuid,
-	TIMESTAMP '2026-04-01 06:00:00' + ((gs - 1) * INTERVAL '6 hours'),
-	round((18.0 + ((gs - 1) % 12) * 0.8)::numeric, 1),
-	35 + ((gs * 5) % 45),
-	55 + ((gs * 4) % 35),
-	round(((gs % 6) * 1.7)::numeric, 1),
-	round((420 + ((gs * 17) % 390))::numeric, 1),
-	round((1.1 + ((gs * 3) % 18) * 0.12)::numeric, 2),
-	round((1007.5 + ((gs * 2) % 10) * 0.7)::numeric, 2),
-	TIMESTAMP '2026-04-01 06:05:00' + ((gs - 1) * INTERVAL '6 hours')
-FROM generate_series(1, 60) AS gs;
+	format('00000000-0000-0000-0000-%s', lpad(to_hex(770 + gs), 12, '0'))::uuid,
+	format('00000000-0000-0000-0000-%s', lpad(to_hex(601 + ((gs - 1) % 120)), 12, '0'))::uuid,
+	TIMESTAMP '2026-03-15 04:30:00' + ((gs - 1) * INTERVAL '3 hours'),
+	round((16.8 + ((gs % 18) * 1.07))::numeric, 1),
+	32 + ((gs * 5) % 45),
+	53 + ((gs * 11) % 33),
+	round(((gs % 9)::numeric * 1.42), 1),
+	round((430 + ((gs * 19) % 380))::numeric, 1),
+	round((0.92 + ((gs % 24) * 0.095))::numeric, 2),
+	round((1006.9 + ((gs % 18) * 0.82))::numeric, 2),
+	TIMESTAMP '2026-03-15 04:42:00' + ((gs - 1) * INTERVAL '3 hours')
+FROM generate_series(1, 320) AS gs;
 
 -- =====================================================
--- 9) Eventos de riego
+-- 9) Eventos de riego (88 registros ciclando 60 lotes)
 -- =====================================================
 WITH base AS (
 	SELECT
 		gs,
-		301 + ((gs - 1) % 18) AS lote_num,
-		(ARRAY['goteo', 'aspersion', 'inundacion', 'subterraneo'])[((gs - 1) % 4) + 1] AS tipo_riego,
-		(ARRAY['manual', 'automatico', 'prediccion_ml', 'programado'])[((gs - 1) % 4) + 1] AS origen_decision
-	FROM generate_series(1, 18) AS gs
+		301 + ((gs - 1) % 60) AS lote_num,
+		(ARRAY['goteo', 'aspersion', 'inundacion', 'subterraneo'])[((gs - 1) % 4) + 1]::varchar(20) AS tipo_riego,
+		(ARRAY['manual', 'automatico', 'prediccion_ml', 'programado'])[((gs - 1) % 4) + 1]::varchar(50) AS origen_decision
+	FROM generate_series(1, 88) AS gs
 )
 INSERT INTO evento_riego (
 	id,
@@ -298,27 +360,27 @@ INSERT INTO evento_riego (
 	created_at
 )
 SELECT
-	format('00000000-0000-0000-0000-%s', lpad(to_hex(800 + gs), 12, '0'))::uuid,
+	format('00000000-0000-0000-0000-%s', lpad(to_hex(830 + gs), 12, '0'))::uuid,
 	format('00000000-0000-0000-0000-%s', lpad(to_hex(lote_num), 12, '0'))::uuid,
-	TIMESTAMP '2026-04-05 05:30:00' + ((gs - 1) * INTERVAL '1 day'),
-	25 + ((gs - 1) % 6) * 10,
-	round((4.50 + ((gs - 1) * 0.55))::numeric, 2),
+	TIMESTAMP '2026-01-08 03:35:00' + ((gs - 1) * INTERVAL '18 hours'),
+	22 + ((gs % 9) * 12),
+	round((4.20 + ((gs % 62)::numeric * 0.14))::numeric, 2),
 	tipo_riego,
 	origen_decision,
-	round((0.72 + ((gs - 1) % 8) * 0.03)::numeric, 2),
-	TIMESTAMP '2026-04-05 06:10:00' + ((gs - 1) * INTERVAL '1 day')
+	round((0.68 + ((gs % 9) * 0.029))::numeric, 2),
+	TIMESTAMP '2026-01-08 04:06:00' + ((gs - 1) * INTERVAL '18 hours')
 FROM base;
 
 -- =====================================================
--- 10) Ejecuciones de workflows
+-- 10) Workflows (IDs 891–930)
 -- =====================================================
 WITH base AS (
 	SELECT
 		gs,
-		(ARRAY['ingesta_clima', 'generacion_reporte', 'prediccion_rendimiento'])[((gs - 1) % 3) + 1] AS workflow_nombre,
-		(ARRAY['ejecutando', 'completado', 'fallido', 'cancelado'])[((gs - 1) % 4) + 1] AS estado,
-		TIMESTAMP '2026-04-01 05:00:00' + ((gs - 1) * INTERVAL '8 hours') AS inicio_ejecucion
-	FROM generate_series(1, 15) AS gs
+		(ARRAY['ingesta_clima', 'generacion_reporte', 'prediccion_rendimiento'])[((gs - 1) % 3) + 1]::varchar(100) AS workflow_nombre,
+		(ARRAY['ejecutando', 'completado', 'fallido', 'cancelado'])[((gs - 1) % 4) + 1]::varchar(20) AS estado,
+		TIMESTAMP '2026-01-03 03:05:00' + ((gs - 1) * INTERVAL '5 hours') AS inicio_ejecucion
+	FROM generate_series(1, 40) AS gs
 )
 INSERT INTO workflow_ejecucion (
 	id,
@@ -332,45 +394,53 @@ INSERT INTO workflow_ejecucion (
 	created_at
 )
 SELECT
-	format('00000000-0000-0000-0000-%s', lpad(to_hex(900 + gs), 12, '0'))::uuid,
+	format('00000000-0000-0000-0000-%s', lpad(to_hex(890 + gs), 12, '0'))::uuid,
 	workflow_nombre,
 	inicio_ejecucion,
 	CASE
 		WHEN estado = 'ejecutando' THEN NULL
-		ELSE inicio_ejecucion + INTERVAL '22 minutes' + ((gs % 5) * INTERVAL '3 minutes')
+		ELSE inicio_ejecucion + INTERVAL '19 minutes' + ((gs % 7) * INTERVAL '2 minutes')
 	END,
 	estado,
 	jsonb_build_object(
-		'fuente', 'n8n',
-		'ventana_horas', 24,
+		'fuente', 'automacion',
+		'ventana_horas', 168,
 		'prioridad', CASE WHEN gs % 2 = 0 THEN 'alta' ELSE 'media' END,
-		'ambiente', 'development'
+		'ambiente', 'development',
+		'correlativo', gs
 	),
 	CASE
-		WHEN estado = 'completado' THEN jsonb_build_object('filas_procesadas', 120 + (gs * 7), 'registros_validos', 115 + (gs * 6), 'duracion_segundos', 85 + (gs * 4))
-		WHEN estado = 'fallido' THEN jsonb_build_object('filas_procesadas', 90 + (gs * 5), 'registros_validos', 84 + (gs * 4))
-		WHEN estado = 'cancelado' THEN jsonb_build_object('motivo', 'cancelacion_manual')
+		WHEN estado = 'completado' THEN jsonb_build_object(
+			'filas_procesadas', 210 + gs * 6,
+			'registros_validos', 198 + gs * 5,
+			'duracion_segundos', 74 + gs * 3
+		)
+		WHEN estado = 'fallido' THEN jsonb_build_object(
+			'filas_procesadas', 110 + gs * 3,
+			'registros_validos', 96 + gs * 2
+		)
+		WHEN estado = 'cancelado' THEN jsonb_build_object('motivo', 'prioridad_operativa')
 		ELSE NULL
 	END,
 	CASE
-		WHEN estado = 'fallido' THEN 'Timeout al consultar fuente externa de clima'
-		WHEN estado = 'cancelado' THEN 'Ejecucion cancelada por mantenimiento'
+		WHEN estado = 'fallido' THEN 'El conector meteo superó SLA (45 segundos)'
+		WHEN estado = 'cancelado' THEN 'Ejecución anulada por ventana mantenimiento'
 		ELSE NULL
 	END,
-	TIMESTAMP '2026-04-01 05:10:00' + ((gs - 1) * INTERVAL '8 hours')
+	TIMESTAMP '2026-01-03 03:09:00' + ((gs - 1) * INTERVAL '5 hours')
 FROM base;
 
 -- =====================================================
--- 11) Predicciones de rendimiento
+-- 11) Predicciones ligadas temporada 501…560
 -- =====================================================
 WITH base AS (
 	SELECT
-		gs,
-		301 + ((gs - 1) % 18) AS lote_num,
-		501 + (gs - 1) AS temporada_num,
-		DATE '2026-04-02' + ((gs - 1) * 2) AS fecha_prediccion,
-		(ARRAY['random_forest', 'gradient_boosting', 'ensemble_stack'])[((gs - 1) % 3) + 1] AS modelo_utilizado
-	FROM generate_series(1, 15) AS gs
+		seq,
+		301 + ((seq - 1) % 60) AS lote_num,
+		500 + seq AS temporada_num,
+		DATE '2026-03-06' + (seq % 41) AS fecha_prediccion,
+		(ARRAY['random_forest', 'gradient_boosting', 'ensemble_stack'])[((seq - 1) % 3) + 1]::varchar(100) AS modelo_utilizado
+	FROM generate_series(1, 60) AS seq
 )
 INSERT INTO prediccion_rendimiento (
 	id,
@@ -386,36 +456,42 @@ INSERT INTO prediccion_rendimiento (
 	created_at
 )
 SELECT
-	format('00000000-0000-0000-0000-%s', lpad(to_hex(1000 + gs), 12, '0'))::uuid,
+	format('00000000-0000-0000-0000-%s', lpad(to_hex(940 + seq), 12, '0'))::uuid,
 	format('00000000-0000-0000-0000-%s', lpad(to_hex(lote_num), 12, '0'))::uuid,
 	format('00000000-0000-0000-0000-%s', lpad(to_hex(temporada_num), 12, '0'))::uuid,
 	fecha_prediccion,
-	round((4200 + (gs * 180))::numeric, 2),
-	round((4200 + (gs * 180) - 280)::numeric, 2),
-	round((4200 + (gs * 180) + 310)::numeric, 2),
+	round((3980 + (seq * 185))::numeric, 2),
+	round((3980 + (seq * 185) - 310)::numeric, 2),
+	round((3980 + (seq * 185) + 336)::numeric, 2),
 	jsonb_build_object(
-		'temperatura_promedio', round((18.5 + ((gs - 1) % 6) * 1.2)::numeric, 1),
-		'humedad_suelo', 38 + ((gs * 4) % 40),
-		'precipitacion_mm', round((((gs - 1) % 5) * 2.3)::numeric, 1),
-		'ndvi', round((0.62 + ((gs - 1) % 5) * 0.04)::numeric, 2)
+		'temperatura_promedio', round((17.4 + ((seq % 9) * 1.06))::numeric, 1),
+		'humedad_suelo', 37 + ((seq * 13) % 38),
+		'precipitacion_mm', round((((seq % 6) + 1) * 2.41)::numeric, 1),
+		'ndvi', round((0.61 + ((seq % 7) * 0.036))::numeric, 3)
 	),
 	modelo_utilizado,
-	round((0.842 + ((gs - 1) % 7) * 0.011)::numeric, 3),
-	TIMESTAMP '2026-04-02 07:00:00' + ((gs - 1) * INTERVAL '5 hours')
+	round((0.831 + ((seq % 8) * 0.012))::numeric, 3),
+	TIMESTAMP '2026-03-06 05:42:00' + ((seq - 1) * INTERVAL '70 minutes')
 FROM base;
 
 -- =====================================================
--- 12) Reportes
+-- 12) Reportes — mezcla de parámetros genéricos y útiles para PDF
 -- =====================================================
 WITH base AS (
 	SELECT
 		gs,
-		101 + ((gs - 1) % 12) AS usuario_num,
-		CASE WHEN gs % 2 = 0 THEN 901 + ((gs - 1) % 15) ELSE NULL END AS workflow_num,
-		(ARRAY['operacional', 'gestion', 'prediccion', 'riego'])[((gs - 1) % 4) + 1] AS tipo,
-		(ARRAY['pdf', 'csv', 'json'])[((gs - 1) % 3) + 1] AS formato,
-		TIMESTAMP '2026-04-03 08:00:00' + ((gs - 1) * INTERVAL '1 day') AS generado_en
-	FROM generate_series(1, 12) AS gs
+		CASE mod(gs - 1, 6)
+			WHEN 0 THEN 101
+			WHEN 1 THEN 102
+			WHEN 2 THEN 102
+			WHEN 3 THEN 103
+			WHEN 4 THEN 103
+			ELSE 104
+		END AS usuario_num,
+		CASE WHEN mod(gs, 2) = 0 THEN 890 + mod(gs - 1, 40) + 1 ELSE NULL END AS workflow_num,
+		(ARRAY['operacional', 'gestion', 'prediccion', 'riego'])[mod(gs - 1, 4) + 1]::varchar(50) AS tipo,
+		TIMESTAMP '2026-04-03 08:00:00' + ((gs - 1) * INTERVAL '20 hours') AS generado_en
+	FROM generate_series(1, 32) AS gs
 )
 INSERT INTO reporte (
 	id,
@@ -437,35 +513,53 @@ SELECT
 		ELSE format('00000000-0000-0000-0000-%s', lpad(to_hex(workflow_num), 12, '0'))::uuid
 	END,
 	tipo,
-	formato,
+	(ARRAY['pdf', 'pdf', 'csv'])[mod(gs - 1, 3) + 1]::varchar(20),
 	NULL,
-	jsonb_build_object(
-		'rango', CASE WHEN gs % 2 = 0 THEN 'mensual' ELSE 'semanal' END,
-		'tipo', tipo,
-		'finca', CASE
-			WHEN gs <= 4 THEN 'Zona Norte'
-			WHEN gs <= 8 THEN 'Zona Centro'
-			ELSE 'Zona Sur'
-		END
-	),
-	180000 + (gs * 8500),
+	CASE tipo
+		WHEN 'operacional' THEN jsonb_build_object(
+			'loteId', format('00000000-0000-0000-0000-%s', lpad(to_hex(304 + mod(gs, 12)), 12, '0'))::text,
+			'startDate', '2025-11-01T05:00:00.000Z',
+			'endDate', '2026-03-29T05:00:00.000Z'
+		)
+		WHEN 'gestion' THEN jsonb_build_object(
+			'fincaId', format('00000000-0000-0000-0000-%s', lpad(to_hex(202 + mod(gs, 8)), 12, '0'))::text,
+			'temporadaFiltrada', 'activos'
+		)
+		ELSE jsonb_build_object(
+			'rango', CASE WHEN gs % 2 = 0 THEN 'trimestral' ELSE 'mensual' END::text,
+			'tipo', tipo::text,
+			'nombre_finca_visual', CASE
+				WHEN usuario_num IN (101, 102) THEN 'Cartera Andina'
+				WHEN usuario_num = 103 THEN 'Llanos / Orinoquia'
+				ELSE 'Supervisión multi-región'
+			END
+		)
+	END,
+	185000 + (gs * 7200),
 	generado_en,
-	CASE WHEN gs % 3 = 0 THEN generado_en + INTERVAL '18 hours' ELSE NULL END
+	CASE WHEN mod(gs, 3) = 0 THEN generado_en + INTERVAL '16 hours' ELSE NULL END
 FROM base;
 
 -- =====================================================
--- 13) Alertas
+-- 13) Alertas — avisos recientes distribuidos en 4 usuarios
 -- =====================================================
 WITH base AS (
 	SELECT
 		gs,
-		101 + ((gs - 1) % 12) AS usuario_num,
-		301 + ((gs - 1) % 18) AS lote_num,
-		(ARRAY['riego', 'clima', 'plaga', 'rendimiento', 'sistema'])[((gs - 1) % 5) + 1] AS tipo,
-		(ARRAY['info', 'advertencia', 'critica', 'emergencia'])[((gs - 1) % 4) + 1] AS severidad,
-		TIMESTAMP '2026-04-04 06:30:00' + ((gs - 1) * INTERVAL '10 hours') AS creada_en,
-		CASE WHEN gs % 2 = 0 THEN true ELSE false END AS leida
-	FROM generate_series(1, 15) AS gs
+		CASE mod(gs - 1, 6)
+			WHEN 0 THEN 101
+			WHEN 1 THEN 102
+			WHEN 2 THEN 102
+			WHEN 3 THEN 103
+			WHEN 4 THEN 103
+			ELSE 104
+		END AS usuario_num,
+		301 + mod(gs - 1, 60) AS lote_num,
+		(ARRAY['riego', 'clima', 'plaga', 'rendimiento', 'sistema'])[mod(gs - 1, 5) + 1]::varchar(50) AS tipo,
+		(ARRAY['info', 'advertencia', 'critica', 'emergencia'])[mod(gs - 1, 4) + 1]::varchar(20) AS severidad,
+		TIMESTAMP '2026-04-02 06:30:00' + ((gs - 1) * INTERVAL '6 hours') AS creada_en,
+		mod(gs, 2) = 0 AS leida
+	FROM generate_series(1, 36) AS gs
 )
 INSERT INTO alerta (
 	id,
@@ -480,26 +574,26 @@ INSERT INTO alerta (
 	leida_en
 )
 SELECT
-	format('00000000-0000-0000-0000-%s', lpad(to_hex(1200 + gs), 12, '0'))::uuid,
+	format('00000000-0000-0000-0000-%s', lpad(to_hex(1290 + gs), 12, '0'))::uuid,
 	format('00000000-0000-0000-0000-%s', lpad(to_hex(usuario_num), 12, '0'))::uuid,
 	format('00000000-0000-0000-0000-%s', lpad(to_hex(lote_num), 12, '0'))::uuid,
 	tipo,
 	severidad,
 	CASE tipo
-		WHEN 'riego' THEN 'Humedad del suelo por debajo del umbral recomendado en el lote ' || lote_num::text
-		WHEN 'clima' THEN 'Pronostico de lluvia intensa para el lote ' || lote_num::text
-		WHEN 'plaga' THEN 'Posible riesgo de plaga detectado por analitica historica en el lote ' || lote_num::text
-		WHEN 'rendimiento' THEN 'El rendimiento estimado descendio respecto a la prediccion anterior en el lote ' || lote_num::text
-		ELSE 'Servicio de integracion con n8n requiere revision'
+		WHEN 'riego' THEN 'Humedad de suelo bajo punto de recarga programada en celda enlazada al lote ' || lote_num::text
+		WHEN 'clima' THEN 'Frente lluvioso pronosticado: revisar ventana de pulverización cercana al lote ' || lote_num::text
+		WHEN 'plaga' THEN 'Anomalía térmica correlacionada con riesgo fitosanitario en lote ' || lote_num::text
+		WHEN 'rendimiento' THEN 'Diferencia estadística contra meta de campo en lote ' || lote_num::text || ' (>8 %)'
+		ELSE 'Conector webhook n8n devolvió código 524 en job nocturno'
 	END,
 	jsonb_build_object(
-		'umbral', CASE tipo WHEN 'riego' THEN 35 WHEN 'clima' THEN 80 WHEN 'plaga' THEN 70 WHEN 'rendimiento' THEN 15 ELSE 1 END,
-		'valor_detectado', CASE tipo WHEN 'riego' THEN 28 WHEN 'clima' THEN 91 WHEN 'plaga' THEN 76 WHEN 'rendimiento' THEN 12 ELSE 0 END,
-		'origen', 'seed'
+		'umbral_objetivo', CASE tipo WHEN 'riego' THEN 36 WHEN 'clima' THEN 82 WHEN 'plaga' THEN 72 WHEN 'rendimiento' THEN 4800 ELSE 1 END,
+		'valor_observado', CASE tipo WHEN 'riego' THEN 29 WHEN 'clima' THEN 93 WHEN 'plaga' THEN 78 WHEN 'rendimiento' THEN 4420 ELSE 524 END,
+		'origen_demostracion', 'seed_datos.sql'
 	),
 	leida,
 	creada_en,
-	CASE WHEN leida THEN creada_en + INTERVAL '2 hours' ELSE NULL END
+	CASE WHEN leida THEN creada_en + INTERVAL '2 hours 45 minutes' ELSE NULL END
 FROM base;
 
 COMMIT;

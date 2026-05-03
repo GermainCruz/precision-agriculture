@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { managementReportPdf, noticePdf, operationalReportPdf } from './reports-pdf';
 
 /** Hosts ficticios del seed o entornos de demo que no deben abrirse en el navegador. */
 function isUnreachableFileUrl(url: string): boolean {
@@ -19,7 +20,7 @@ function isUnreachableFileUrl(url: string): boolean {
 export class ReportsService {
   constructor(private prisma: PrismaService) {}
 
-  /** Expone sólo URLs que el cliente pueda resolver; el resto pasa como null → se usa JSON. */
+  /** Expone sólo URLs que el cliente pueda resolver; el resto pasa como null → descarga PDF vía exportPdf. */
   private sanitizeStoredFileUrl(url: string | null): string | null {
     if (!url?.trim()) return null;
     if (isUnreachableFileUrl(url.trim())) return null;
@@ -155,13 +156,13 @@ export class ReportsService {
     params: { loteId: string; startDate: Date; endDate: Date },
     userId: string,
   ) {
-    const contenido = await this.computeOperationalContenido(params, userId);
+    await this.computeOperationalContenido(params, userId);
 
     const reporte = await this.prisma.reporte.create({
       data: {
         usuarioId: userId,
         tipo: 'operacional',
-        formato: 'json',
+        formato: 'pdf',
         parametrosFiltros: {
           loteId: params.loteId,
           startDate: params.startDate,
@@ -171,35 +172,32 @@ export class ReportsService {
       },
     });
 
-    return { ...reporte, contenido };
+    return reporte;
   }
 
   async generateManagementReport(
     params: { fincaId: string; temporadaId?: string },
     userId: string,
   ) {
-    const contenido = await this.computeManagementContenido(params, userId);
+    await this.computeManagementContenido(params, userId);
 
     const reporte = await this.prisma.reporte.create({
       data: {
         usuarioId: userId,
         tipo: 'gestion',
-        formato: 'json',
+        formato: 'pdf',
         parametrosFiltros: params as Prisma.InputJsonValue,
         urlArchivo: null,
       },
     });
 
-    return {
-      ...reporte,
-      contenido,
-    };
+    return reporte;
   }
 
   /**
-   * Payload JSON útil cuando no hay archivo almacenado o la URL era ficticia (p. ej. storage.local).
+   * Genera PDF a partir del historial del reporte y parámetros guardados (no se confía en URL ficticia).
    */
-  async exportReportJson(reportId: string, userId: string) {
+  async exportReportPdf(reportId: string, userId: string) {
     const reporte = await this.prisma.reporte.findFirst({
       where: { id: reportId, usuarioId: userId },
     });
@@ -211,7 +209,7 @@ export class ReportsService {
         ? (reporte.parametrosFiltros as Record<string, unknown>)
         : {};
 
-    let contenido: Record<string, unknown>;
+    let buffer: Buffer;
 
     try {
       if (
@@ -228,13 +226,7 @@ export class ReportsService {
           },
           userId,
         );
-        contenido = {
-          reporteId: reporte.id,
-          tipo: reporte.tipo,
-          formato: reporte.formato,
-          generadoEn: reporte.generadoEn,
-          datos: c,
-        };
+        buffer = await operationalReportPdf(c, reporte.generadoEn);
       } else if (reporte.tipo === 'gestion' && typeof params.fincaId === 'string') {
         const c = await this.computeManagementContenido(
           {
@@ -244,45 +236,38 @@ export class ReportsService {
           },
           userId,
         );
-        contenido = {
-          reporteId: reporte.id,
-          tipo: reporte.tipo,
-          formato: reporte.formato,
-          generadoEn: reporte.generadoEn,
-          datos: c,
-        };
+        buffer = await managementReportPdf(c, reporte.generadoEn);
       } else {
-        contenido = {
-          reporteId: reporte.id,
-          tipo: reporte.tipo,
-          formato: reporte.formato,
-          generadoEn: reporte.generadoEn,
-          parametrosFiltros: params,
-          nota:
-            'Reporte sin parámetros técnicos completos para regenerar contenido (p. ej. datos de demostración).',
-        };
+        buffer = await noticePdf(
+          'Reporte no disponible como PDF completo',
+          [
+            `Tipo: ${reporte.tipo}.`,
+            'Este ítem carece de parámetros técnicos (lote/fechas o finca) para recomponer el contenido.',
+            'Puede tratarse de datos de demostración o un formato antiguo.',
+          ],
+          reporte.generadoEn,
+        );
       }
     } catch {
-      contenido = {
-        reporteId: reporte.id,
-        tipo: reporte.tipo,
-        formato: reporte.formato,
-        generadoEn: reporte.generadoEn,
-        parametrosFiltros: params,
-        nota:
-          'No se pudo recomponer datos del lote o finca para este historial (IDs inexistentes o datos de muestra).',
-      };
+      buffer = await noticePdf(
+        'Error al generar el reporte PDF',
+        [
+          'No se pudieron cargar datos actuales del lote o finca.',
+          'Comprueba que existan registros asociados a tu cuenta o genera el reporte de nuevo.',
+        ],
+        reporte.generadoEn,
+      );
     }
 
     await this.prisma.reporte.update({
       where: { id: reportId },
-      data: { descargadoEn: new Date() },
+      data: { descargadoEn: new Date(), tamanioBytes: buffer.length },
     });
 
     const safeTipo = String(reporte.tipo).replace(/[^a-z0-9_-]/gi, '_');
     return {
-      filename: `${safeTipo}-${reporte.id.slice(0, 8)}.json`,
-      contenido,
+      filename: `${safeTipo}-${reporte.id.slice(0, 8)}.pdf`,
+      pdfBase64: buffer.toString('base64'),
     };
   }
 
