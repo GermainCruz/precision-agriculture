@@ -47,7 +47,9 @@ export default function LoginPage() {
         title: 'Bienvenido',
         description: `Hola ${response.usuario.nombre}`,
       })
-      router.push('/dashboard')
+      const dest =
+        response.usuario.rol?.toLowerCase() === 'agricultor' ? '/lotes' : '/dashboard'
+      router.push(dest)
     } catch (error: any) {
       toast({
         title: 'Error',

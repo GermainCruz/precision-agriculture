@@ -40,11 +40,12 @@ export function Header() {
   }, [ready, isLoggedIn])
 
   const handleLogout = () => {
+    const wasAgricultor = user?.rol?.toLowerCase() === 'agricultor'
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     setUser(null)
     notifyAuthChanged()
-    router.push('/dashboard')
+    router.push(wasAgricultor ? '/lotes' : '/dashboard')
   }
 
   return (

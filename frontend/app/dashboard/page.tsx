@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MetricCard } from '@/components/dashboard/metric-card'
@@ -7,13 +8,16 @@ import { YieldChart } from '@/components/dashboard/yield-chart'
 import { IrrigationChart } from '@/components/dashboard/irrigation-chart'
 import { AlertsList } from '@/components/dashboard/alerts-list'
 import { DashboardGuestWelcome } from '@/components/dashboard/dashboard-guest-welcome'
+import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
-import { useAuthToken } from '@/hooks/use-auth-token'
-import { Loader2 } from 'lucide-react'
+import { useAuthToken, useStoredUser } from '@/hooks/use-auth-token'
+import { LayoutDashboard, Loader2 } from 'lucide-react'
 
 export default function DashboardPage() {
   const { isLoggedIn, ready } = useAuthToken()
-  const canFetch = ready && isLoggedIn
+  const { user } = useStoredUser()
+  const isAgricultor = user?.rol?.toLowerCase() === 'agricultor'
+  const canFetch = ready && isLoggedIn && !isAgricultor
 
   const { data: metrics, isLoading: metricsLoading } = api.dashboard.getMetrics.useQuery(undefined, {
     enabled: canFetch,
@@ -29,6 +33,34 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (isLoggedIn && isAgricultor) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Vista ejecutiva con métricas y gráficos del sistema
+          </p>
+        </div>
+        <Card>
+          <CardContent className="pt-6 flex flex-col items-center text-center gap-4 sm:flex-row sm:text-left sm:items-start">
+            <LayoutDashboard className="h-10 w-10 text-muted-foreground shrink-0" aria-hidden />
+            <div className="space-y-2">
+              <p className="font-medium">No tienes permiso para esta sección</p>
+              <p className="text-sm text-muted-foreground">
+                El perfil de agricultor opera desde <strong>Lotes</strong>, <strong>Riego</strong> y el
+                resto del menú; el panel de dashboard está reservado a administradores y técnicos.
+              </p>
+              <Button asChild className="mt-2">
+                <Link href="/lotes">Ir a Lotes</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }

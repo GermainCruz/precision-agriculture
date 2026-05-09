@@ -1,10 +1,11 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, ShieldOff } from 'lucide-react'
 import { api } from '@/lib/api'
 import { GuestPrompt } from '@/components/auth/guest-prompt'
-import { useAuthToken } from '@/hooks/use-auth-token'
+import { useAuthToken, useStoredUser } from '@/hooks/use-auth-token'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -31,7 +32,9 @@ const tipoConfig = {
 export default function ReportesPage() {
   const { toast } = useToast()
   const { ready, isLoggedIn } = useAuthToken()
-  const canFetch = ready && isLoggedIn
+  const { user } = useStoredUser()
+  const isAgricultor = user?.rol?.toLowerCase() === 'agricultor'
+  const canFetch = ready && isLoggedIn && !isAgricultor
 
   const [filterTipo, setFilterTipo] = useState<'operacional' | 'gestion' | undefined>()
   const [genDialogOpen, setGenDialogOpen] = useState(false)
@@ -138,6 +141,32 @@ export default function ReportesPage() {
           <p className="text-gray-500 text-sm mt-1">Genera y descarga reportes del sistema</p>
         </div>
         <GuestPrompt description="Lista, generación y eliminación de reportes están vinculadas a tu usuario; identifícate para usar esta sección." />
+      </div>
+    )
+  }
+
+  if (isAgricultor) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Reportes</h1>
+          <p className="text-gray-500 text-sm mt-1">Genera y descarga reportes del sistema</p>
+        </div>
+        <Card>
+          <CardContent className="pt-6 flex flex-col items-center text-center gap-4 sm:flex-row sm:text-left sm:items-start">
+            <ShieldOff className="h-10 w-10 text-muted-foreground shrink-0" aria-hidden />
+            <div className="space-y-2">
+              <p className="font-medium">No tienes permiso para esta sección</p>
+              <p className="text-sm text-muted-foreground">
+                El perfil de agricultor gestiona fincas, lotes y operación; la generación de reportes está
+                reservada a administradores y técnicos.
+              </p>
+              <Button asChild className="mt-2">
+                <Link href="/dashboard">Volver al panel</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }

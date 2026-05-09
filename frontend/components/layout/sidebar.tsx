@@ -15,13 +15,18 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
-import { useAuthToken, notifyAuthChanged } from '@/hooks/use-auth-token'
+import { useAuthToken, notifyAuthChanged, useStoredUser } from '@/hooks/use-auth-token'
 
 const menuItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  {
+    href: '/dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    hideForRoles: ['agricultor'] as const,
+  },
   { href: '/lotes', label: 'Lotes', icon: MapPin },
   { href: '/riego', label: 'Riego', icon: Droplet },
-  { href: '/reportes', label: 'Reportes', icon: FileText },
+  { href: '/reportes', label: 'Reportes', icon: FileText, hideForRoles: ['agricultor'] as const },
   { href: '/alertas', label: 'Alertas', icon: Bell },
   { href: '/configuracion', label: 'Configuración', icon: Settings },
 ]
@@ -30,12 +35,22 @@ export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { isLoggedIn, ready } = useAuthToken()
+  const { user } = useStoredUser()
+
+  const visibleMenu = menuItems.filter((item) => {
+    const hide = 'hideForRoles' in item && item.hideForRoles
+    if (!hide?.length) return true
+    const rol = user?.rol?.toLowerCase()
+    if (!rol) return true
+    return !hide.some((r) => r.toLowerCase() === rol)
+  })
 
   const handleLogout = () => {
+    const wasAgricultor = user?.rol?.toLowerCase() === 'agricultor'
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     notifyAuthChanged()
-    router.push('/dashboard')
+    router.push(wasAgricultor ? '/lotes' : '/dashboard')
   }
 
   return (
@@ -46,7 +61,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 px-4 space-y-1">
-        {menuItems.map((item) => {
+        {visibleMenu.map((item) => {
           const Icon = item.icon
           return (
             <Link

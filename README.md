@@ -155,14 +155,15 @@ El sistema está diseñado para **pequeños y medianos productores agrícolas** 
 - Windows 10/11, macOS 10.15+, o Linux (Ubuntu 20.04+)
 
 ### Software Requerido
-- **Docker**: v20.10+ y **Docker Compose**: v2.0+
+- **Docker** y **Docker Compose** (v2.0+): **opcionales**; solo hacen falta si vas a usar la orquestación con contenedores.
   - Descargar: https://www.docker.com/products/docker-desktop
 - **Git**: v2.30+
   - Descargar: https://git-scm.com/
 - **Node.js**: v20 LTS
   - Descargar: https://nodejs.org/
-- **PostgreSQL Client** (opcional para desarrollo local sin Docker)
+- **PostgreSQL** (servidor local **15+** recomendado, con PostGIS si usas el esquema del repo): necesario para el backend **sin Docker**.
   - Descargar: https://www.postgresql.org/download/
+- **Redis** (local): el backend en modo npm suele esperarlo; instálalo o ajústalo según `backend/.env`.
 - **Python**: 3.11+ (opcional para ML service local; ver `ml-service/requirements.txt`)
   - Descargar: https://www.python.org/
 
@@ -174,6 +175,8 @@ El sistema está diseñado para **pequeños y medianos productores agrícolas** 
 ---
 
 ## ⚙️ Instalación
+
+> **Si no usas Docker:** no sigas los pasos 2–5 de esta sección (asumen Compose). Configura **`backend/.env`** (p. ej. `DATABASE_URL` a `localhost`), **`.env` en la raíz** solo para variables que indique el README (n8n, OpenWeather, `ML_SERVICE_URL`), levanta Postgres/Redis local, y ve a **[Desarrollo Local (Sin Docker)](#-desarrollo-local-sin-docker)** y a **`n8n-workflows/README.md`** (Opción A).
 
 ### 1️⃣ Clonar el Repositorio
 
@@ -221,7 +224,7 @@ docker-compose ps
 **Servicios levantados:**
 - 🐘 **PostgreSQL**: http://localhost:5432
 - 🔴 **Redis**: http://localhost:6379
-- 📝 **n8n**: http://localhost:5678 (admin/admin123)
+- 📝 **n8n**: http://localhost:5678 (Basic Auth: `N8N_BASIC_AUTH_*` en `.env` raíz; por defecto `admin` / `admin123`)
 - 🐍 **ML Service**: http://localhost:5000
 - 🚀 **Backend**: http://localhost:3001 (Compose expone `PORT=3001` en el contenedor)
 
@@ -248,7 +251,7 @@ exit
 
 - **Frontend**: http://localhost:3000
 - **Backend API (Compose)**: http://localhost:3001/trpc
-- **n8n Dashboard**: http://localhost:5678 (admin/admin123)
+- **n8n Dashboard**: http://localhost:5678 (credenciales según `.env`: `N8N_BASIC_AUTH_USER` / `N8N_BASIC_AUTH_PASSWORD`)
 - **ML Service API**: http://localhost:5000
 
 **Credenciales de Prueba** (después del seed):
@@ -261,6 +264,8 @@ Rol: Administrador
 ---
 
 ## 🔧 Desarrollo Local (Sin Docker)
+
+Aquí corre todo en tu máquina: **PostgreSQL** y **Redis** como servicios locales, **backend** y **frontend** con `npm`, **ml-service** con Python, y **n8n** con `n8n-workflows/run-local.bat` (Node + SQLite en `n8n-workflows/n8n-local-data`). No necesitas `docker-compose` para este flujo.
 
 ### Backend
 
@@ -337,15 +342,21 @@ Abrir solo `http://127.0.0.1:5000/` en el navegador debe responder JSON; **no** 
 
 ### n8n (automación)
 
-**Sin Docker (local):** en **`n8n-workflows`** ejecuta **`run-local.bat`**. Lee **`backend/.env`** y del **`.env` raíz** solo **`OPENWEATHER_API_KEY`** / **`N8N_*`** (no pisar `DATABASE_URL` local por valores Docker). SQLite en **`n8n-workflows/n8n-local-data`**, **http://localhost:5678**. La consola resume host/usuario/base para la credencial Postgres (sin contraseña). Opcional primera vez: **`import-workflows.bat`** (con n8n cerrado) antes de **`run-local.bat`**.
+**Flujo habitual sin Docker:** en **`n8n-workflows`** ejecuta **`run-local.bat`**. El script lee **`backend/.env`** (sobre todo `DATABASE_URL` para indicarte host/base al crear la credencial Postgres en n8n) y, desde el **`.env` raíz**, solo **`OPENWEATHER_API_KEY`**, **`N8N_ENCRYPTION_KEY`**, **`N8N_BASIC_AUTH_*`**, **`WEBHOOK_URL`**, **`N8N_WEBHOOK_URL`**, **`N8N_SECURE_COOKIE`** — así no se sobrescribe tu `DATABASE_URL` local con valores pensados para Docker. Datos internos de n8n en SQLite: **`n8n-workflows/n8n-local-data`**. URL: **http://localhost:5678**. Opcional la primera vez: **`import-workflows.bat`** con n8n cerrado, luego **`run-local.bat`**.
 
-**Con Docker Compose:** `docker compose up` levanta el servicio **`n8n`** con PostgreSQL dedicado (**base `n8n`**, script `Database/init-n8n-database.sql` en el primer arranque del volumen). La credencial hacia tus datos usa host **`postgres`** y la base **`agricultura_db`** (usuario/contraseña del Compose).
+<details>
+<summary>Si en el futuro usas Docker Compose para n8n</summary>
 
-**Variables útiles:**
+`docker compose up` levanta **`n8n`** con Postgres dedicado (base **`n8n`**). La credencial hacia tus datos de negocio usa host **`postgres`** y base **`agricultura_db`**.
+
+</details>
+
+**Variables útiles (`.env` raíz; aplica al arranque local con `run-local.bat`):**
 
 | Variable | Para qué sirve |
 |----------|----------------|
-| `N8N_ENCRYPTION_KEY` | En Docker va en `.env` raíz. En local, el `run-local.bat` ya define una clave de ejemplo (cámbiala y manténla fija si guardas credenciales). |
+| `N8N_ENCRYPTION_KEY` | ≥32 caracteres; **manténla fija** o las credenciales guardadas en n8n dejan de descifrarse. |
+| `N8N_BASIC_AUTH_USER` / `N8N_BASIC_AUTH_PASSWORD` | Basic Auth del navegador (por defecto `admin` / `admin123` si no las defines). |
 | `OPENWEATHER_API_KEY` | Opcional, para ingesta climática ([OpenWeatherMap](https://openweathermap.org/api)). |
 
 Guía paso a paso: **`n8n-workflows/README.md`**.
@@ -811,7 +822,7 @@ FRONTEND_URL=https://tu-dominio.com
 **Problema**: Tras borrar datos o cambiar máquina, las credenciales guardadas en n8n no funcionan.
 
 **Soluciones**:
-1. **Local (`run-local.bat`):** no borres la carpeta `n8n-workflows/n8n-local-data` sin querer; si cambias `N8N_ENCRYPTION_KEY` en el `.bat`, vuelve a crear credenciales en la UI.
+1. **Local (`run-local.bat`):** no borres la carpeta `n8n-workflows/n8n-local-data` sin querer; si cambias `N8N_ENCRYPTION_KEY` en el **`.env` raíz** (o en variables de entorno antes de arrancar), vuelve a crear credenciales en la UI.
 2. **Docker:** define `N8N_ENCRYPTION_KEY` fijo en `.env` (≥32 caracteres) y `docker compose up -d`. Si falta la base `n8n` en Postgres: `docker compose exec postgres psql -U admin -d postgres -c "CREATE DATABASE n8n;"` y `docker compose restart n8n`.
 3. La credencial Postgres en n8n debe apuntar a **`agricultura_db`** (host `localhost` en local, `postgres` en Compose), no a la base interna de n8n.
 

@@ -42,3 +42,44 @@ export function useAuthToken() {
     refresh,
   }
 }
+
+export type StoredUser = {
+  id?: string
+  email?: string
+  nombre?: string
+  apellido?: string
+  rol?: string
+}
+
+/** Usuario persistido tras login/registro (`localStorage.user`), alineado con `AUTH_CHANGE_EVENT`. */
+export function useStoredUser() {
+  const { ready, isLoggedIn } = useAuthToken()
+  const [user, setUser] = useState<StoredUser | null>(null)
+
+  const load = useCallback(() => {
+    if (typeof window === 'undefined') return
+    if (!localStorage.getItem('token')) {
+      setUser(null)
+      return
+    }
+    const stored = localStorage.getItem('user')
+    if (!stored) {
+      setUser(null)
+      return
+    }
+    try {
+      setUser(JSON.parse(stored) as StoredUser)
+    } catch {
+      setUser(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!ready) return
+    load()
+    window.addEventListener(AUTH_CHANGE_EVENT, load)
+    return () => window.removeEventListener(AUTH_CHANGE_EVENT, load)
+  }, [ready, load, isLoggedIn])
+
+  return { user, ready }
+}

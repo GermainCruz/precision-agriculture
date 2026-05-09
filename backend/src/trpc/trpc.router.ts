@@ -371,6 +371,7 @@ export class TrpcRouter {
     reports: this.trpc.router({
       getAll: this.trpc.procedure
         .use(this.trpc.authMiddleware())
+        .use(this.trpc.reportsAccessMiddleware())
         .input(z.object({ tipo: z.enum(['operacional', 'gestion']).optional() }))
         .query(async ({ input, ctx }) => {
           return this.reportsService.findAll(ctx.user.sub, input.tipo);
@@ -378,6 +379,7 @@ export class TrpcRouter {
 
       generateOperational: this.trpc.procedure
         .use(this.trpc.authMiddleware())
+        .use(this.trpc.reportsAccessMiddleware())
         .input(z.object({
           loteId: z.string(),
           startDate: z.coerce.date(),
@@ -392,6 +394,7 @@ export class TrpcRouter {
 
       generateManagement: this.trpc.procedure
         .use(this.trpc.authMiddleware())
+        .use(this.trpc.reportsAccessMiddleware())
         .input(z.object({
           fincaId: z.string(),
           temporadaId: z.string().optional(),
@@ -405,6 +408,7 @@ export class TrpcRouter {
 
       download: this.trpc.procedure
         .use(this.trpc.authMiddleware())
+        .use(this.trpc.reportsAccessMiddleware())
         .input(z.object({ reportId: z.string() }))
         .query(async ({ input, ctx }) => {
           return this.reportsService.getDownloadUrl(input.reportId, ctx.user.sub);
@@ -412,6 +416,7 @@ export class TrpcRouter {
 
       exportPdf: this.trpc.procedure
         .use(this.trpc.authMiddleware())
+        .use(this.trpc.reportsAccessMiddleware())
         .input(z.object({ reportId: z.string() }))
         .mutation(async ({ input, ctx }) => {
           return this.reportsService.exportReportPdf(input.reportId, ctx.user.sub);
@@ -419,6 +424,7 @@ export class TrpcRouter {
 
       delete: this.trpc.procedure
         .use(this.trpc.authMiddleware())
+        .use(this.trpc.reportsAccessMiddleware())
         .input(z.object({ reportId: z.string() }))
         .mutation(async ({ input, ctx }) => {
           return this.reportsService.deleteReport(input.reportId, ctx.user.sub);
@@ -458,6 +464,7 @@ export class TrpcRouter {
     dashboard: this.trpc.router({
       getMetrics: this.trpc.procedure
         .use(this.trpc.authMiddleware())
+        .use(this.trpc.dashboardAccessMiddleware())
         .query(async ({ ctx }) => {
           const [farms, plots, predictions, unreadAlerts, irrigation] = await Promise.all([
             this.farmsService.findAll(ctx.user.sub),
@@ -487,6 +494,7 @@ export class TrpcRouter {
 
       getCharts: this.trpc.procedure
         .use(this.trpc.authMiddleware())
+        .use(this.trpc.dashboardAccessMiddleware())
         .input(z.object({
           fincaId: z.string().optional(),
           periodo: z.enum(['semana', 'mes', 'ano']).default('mes'),

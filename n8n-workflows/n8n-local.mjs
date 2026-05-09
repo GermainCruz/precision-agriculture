@@ -40,7 +40,7 @@ function loadEnvFile(filePath, opts = {}) {
   const override = !!opts.override;
   const onlyKeys = opts.onlyKeys;
   if (!fs.existsSync(filePath)) return;
-  const text = fs.readFileSync(filePath, 'utf8');
+  const text = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '');
   for (const line of text.split(/\r?\n/)) {
     const t = line.trim();
     if (!t || t.startsWith('#')) continue;
@@ -61,6 +61,33 @@ function loadEnvFile(filePath, opts = {}) {
     const empty = cur === undefined || cur === '';
     if (override || empty) process.env[key] = val;
   }
+}
+
+/**
+ * n8n guarda la clave de cifrado en `.n8n/config` tras el primer arranque.
+ * Si `N8N_ENCRYPTION_KEY` en `.env` es distinta, n8n aborta con "Mismatching encryption keys".
+ * Priorizamos la clave del archivo para no obligar a borrar `n8n-local-data`.
+ * @returns {string|null}
+ */
+function readEncryptionKeyFromN8nConfig() {
+  const configPath = path.join(N8N_DATA, '.n8n', 'config');
+  if (!fs.existsSync(configPath)) return null;
+  try {
+    const raw = fs.readFileSync(configPath, 'utf8').trim();
+    if (!raw) return null;
+    const j = JSON.parse(raw);
+    const k =
+      j.encryptionKey ??
+      j.encryption_key ??
+      j.settings?.encryptionKey ??
+      j.settings?.encryption_key;
+    if (typeof k === 'string' && k.length >= 16) return k;
+    const m = raw.match(/"encryptionKey"\s*:\s*"([^"]+)"/);
+    if (m?.[1] && m[1].length >= 16) return m[1];
+  } catch (e) {
+    console.warn('[n8n-local] No se pudo leer encryptionKey de .n8n/config:', e.message);
+  }
+  return null;
 }
 
 function printPostgresCredentialHint() {
@@ -108,11 +135,28 @@ function prepareEnv() {
     process.env.N8N_ENCRYPTION_KEY =
       'local-n8n-agriprecision-key-min-32-chars-change-me-ok';
   }
+
+  const keyFromInstance = readEncryptionKeyFromN8nConfig();
+  if (keyFromInstance) {
+    if (process.env.N8N_ENCRYPTION_KEY !== keyFromInstance) {
+      console.warn(
+        '[n8n-local] N8N_ENCRYPTION_KEY del .env raíz no coincide con n8n-local-data/.n8n/config.',
+      );
+      console.warn(
+        '[n8n-local] Se usa la clave ya guardada por n8n. Copia esa misma clave a N8N_ENCRYPTION_KEY en tu .env raíz para silenciar este aviso.',
+      );
+    }
+    process.env.N8N_ENCRYPTION_KEY = keyFromInstance;
+  }
+
   process.env.N8N_BASIC_AUTH_ACTIVE ??= 'true';
   process.env.N8N_BASIC_AUTH_USER ??= 'admin';
   process.env.N8N_BASIC_AUTH_PASSWORD ??= 'admin123';
   process.env.WEBHOOK_URL ??= 'http://localhost:5678/';
   process.env.N8N_SECURE_COOKIE ??= 'false';
+
+  // workflow-climate-ingest usa {{ $env.OPENWEATHER_API_KEY }} en el nodo HTTP
+  process.env.N8N_BLOCK_ENV_ACCESS_IN_NODE = 'false';
 }
 
 function runImport() {
@@ -142,11 +186,19 @@ function runStart() {
 
   console.log('');
   console.log('[n8n-local] Servicio → http://localhost:5678');
-  console.log('[n8n-local] Basic auth usuario: admin  contraseña: admin123 (solo desarrollo)');
-  if (process.env.OPENWEATHER_API_KEY) {
-    console.log('[n8n-local] OPENWEATHER_API_KEY detectada (.env cargado).');
+  const baUser = process.env.N8N_BASIC_AUTH_USER || 'admin';
+  console.log(
+    `[n8n-local] Basic auth → usuario: ${baUser}  (contraseña: N8N_BASIC_AUTH_PASSWORD en .env raíz; por defecto admin123)`,
+  );
+  const ow = process.env.OPENWEATHER_API_KEY;
+  if (ow && ow.trim()) {
+    const m =
+      ow.length <= 10 ? '****' : `${ow.slice(0, 4)}…${ow.slice(-4)} (${ow.length} caracteres)`;
+    console.log(`[n8n-local] OPENWEATHER_API_KEY lista para $env en workflows → ${m}`);
   } else {
-    console.log('[n8n-local] OPENWEATHER_API_KEY no definida → workflow clima sin clave hasta que la pongas.');
+    console.log(
+      '[n8n-local] OPENWEATHER_API_KEY ausente → añádela al .env raíz del repo (workflow clima usa $env.OPENWEATHER_API_KEY).',
+    );
   }
 
   printPostgresCredentialHint();

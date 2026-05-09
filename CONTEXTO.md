@@ -35,7 +35,7 @@ El Sistema de Agricultura de Precisión es una plataforma inteligente que combin
 | Rol | Descripción | Permisos |
 |-----|-------------|----------|
 | Administrador | Gestión completa del sistema | Todos los permisos, configuración de usuarios |
-| Agricultor | Gestión de fincas y cultivos | Crear/editar fincas, lotes, ver predicciones |
+| Agricultor | Gestión de fincas y cultivos | Crear/editar fincas, lotes, ver predicciones; **sin acceso al dashboard ni a reportes** |
 | Técnico | Monitoreo y análisis | Ver datos, generar reportes, gestionar alertas |
 
 ### 1.3 Navegación Principal
@@ -88,11 +88,13 @@ El Dashboard es tu punto de control central.
 
 Puedes entrar a la aplicación **sin iniciar sesión** y recorrer el menú. En modo invitado verás mensajes que invitan a identificarte en las pantallas que guardan datos de tu cuenta (lotes, riego, reportes, alertas, configuración, etc.). El **Dashboard** muestra una bienvenida orientativa.
 
-**Cerrar sesión** te devuelve al **Dashboard en modo invitado** (ya no tienes token de sesión), no obligatoriamente a la pantalla de inicio de sesión.
+**Cerrar sesión** cierra tu token de sesión. Según tu perfil último conocido, la app puede llevarte al **Dashboard en modo invitado** (administrador / técnico) o a **Lotes en modo invitado** (agricultor), sin obligarte a pasar por la pantalla de inicio de sesión.
 
 ---
 
 ## 3. Dashboard
+
+> **Visibilidad:** el dashboard agregado (métricas y gráficos) está disponible para **administrador** y **técnico**. El perfil **agricultor** entra por defecto en **Lotes** y no ve esta sección en el menú.
 
 ### 3.1 Métricas Clave
 
@@ -339,6 +341,8 @@ En panel de alertas:
 ---
 
 ## 8. Generación de Reportes
+
+> **Visibilidad:** esta sección está disponible para usuarios con rol **administrador** o **técnico**. El perfil **agricultor** no tiene acceso al módulo de reportes.
 
 ### 8.1 Tipos de Reportes
 

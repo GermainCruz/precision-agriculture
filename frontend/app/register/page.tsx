@@ -73,7 +73,7 @@ export default function RegisterPage() {
         title: 'Cuenta creada',
         description: `Bienvenido, ${response.usuario.nombre}`,
       })
-      router.push('/dashboard')
+      router.push('/lotes')
     } catch (error: any) {
       toast({
         title: 'Error',

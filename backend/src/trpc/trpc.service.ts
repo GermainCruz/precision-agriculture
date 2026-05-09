@@ -19,6 +19,24 @@ const t = initTRPC.context<Context>().create({
   },
 });
 
+function agricultorForbiddenMiddleware(forbiddenMessage: string) {
+  return t.middleware(({ ctx, next }) => {
+    if (!ctx.user) {
+      throw new TRPCError({
+        code: 'UNAUTHORIZED',
+        message: 'Token de autenticación requerido',
+      });
+    }
+    if (ctx.user.rol === 'agricultor') {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: forbiddenMessage,
+      });
+    }
+    return next({ ctx: { user: ctx.user } });
+  });
+}
+
 @Injectable()
 export class TrpcService {
   router = t.router;
@@ -62,5 +80,15 @@ export class TrpcService {
       }
       return next({ ctx: { user: ctx.user } });
     });
+  }
+
+  /** Reportes: administrador y técnico (manual de usuario §1.2). */
+  reportsAccessMiddleware() {
+    return agricultorForbiddenMiddleware('Tu rol no tiene acceso a reportes');
+  }
+
+  /** Dashboard agregado: no aplica al perfil agricultor. */
+  dashboardAccessMiddleware() {
+    return agricultorForbiddenMiddleware('Tu rol no tiene acceso al dashboard');
   }
 }

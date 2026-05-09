@@ -2,6 +2,10 @@
 
 JSON para **importar** en n8n. Scripts locales automatizan carga de variables, arranque e import CLI.
 
+**Si trabajas sin Docker**, esta guía es la que debes seguir: usa **Opción A** (`run-local.bat` / `n8n-local.mjs`). La Opción B solo aplica con Compose.
+
+**Pasos detallados (entorno local, `.env`, error de clave de cifrado, Postgres):** [`GUIA-CONEXION-LOCAL-PROYECTO.md`](./GUIA-CONEXION-LOCAL-PROYECTO.md).
+
 ---
 
 ## Opción A — Local **sin Docker**
@@ -23,7 +27,7 @@ Igual tienes que **asignar la credencial Postgres** en cada nodo en la interfaz.
 ### Arrancar n8n (`run-local.bat` → `n8n-local.mjs`)
 
 - Lee **`backend/.env`** completo y, desde el **`.env` raíz del repo**, **solo**: `OPENWEATHER_API_KEY`, `N8N_ENCRYPTION_KEY`, `N8N_BASIC_AUTH_*`, `WEBHOOK_URL`, `N8N_WEBHOOK_URL`, `N8N_SECURE_COOKIE` (así **no** se sobrescribe tu `DATABASE_URL` local si el `.env` raíz trae valores de Docker).
-- Crea **`n8n-local-data/`** (SQLite), abre **http://localhost:5678**, usuario/contraseña de desarrollo `admin` / `admin123`.
+- Crea **`n8n-local-data/`** (SQLite), abre **http://localhost:5678**. Usuario y contraseña de **Basic Auth** se leen del **`.env` raíz** (`N8N_BASIC_AUTH_USER` / `N8N_BASIC_AUTH_PASSWORD`); si no existen, valen `admin` / `admin123`.
 - En consola muestra host, usuario y base inferidos de **`DATABASE_URL`** (sin mostrar contraseña).
 
 **Línea de comandos:**
@@ -57,7 +61,7 @@ Permite Node en **localhost:5678** si no abre la página.
 ## Opción B — Docker Compose
 
 1. **`docker compose up`** con **postgres** y **n8n**.
-2. **`.env`** en la raíz con `OPENWEATHER_API_KEY`, `N8N_ENCRYPTION_KEY`; luego `docker compose restart n8n`.
+2. **`.env`** en la raíz con `OPENWEATHER_API_KEY`, `N8N_ENCRYPTION_KEY`, y opcionalmente `N8N_BASIC_AUTH_USER` / `N8N_BASIC_AUTH_PASSWORD`; luego `docker compose restart n8n`.
 
 Credencial Postgres hacia tus datos:
 
@@ -76,7 +80,7 @@ docker compose restart n8n
 
 ### Abrir n8n
 
-**http://localhost:5678** — **`admin`** / **`admin123`** (solo desarrollo).
+**http://localhost:5678** — Basic Auth según **`.env` raíz** (`N8N_BASIC_AUTH_*`; si no, `admin` / `admin123` en desarrollo).
 
 ### Importar workflows si no usaste `.bat`
 

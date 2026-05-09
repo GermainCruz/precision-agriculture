@@ -2,6 +2,7 @@ version: '3.8'
 
 # Variables opcionales en .env raíz:
 # N8N_ENCRYPTION_KEY (min. ~32 caracteres; estable o las credenciales dejan de funcionar tras reinicios)
+# N8N_BASIC_AUTH_USER / N8N_BASIC_AUTH_PASSWORD (por defecto admin / admin123 si no las defines)
 # OPENWEATHER_API_KEY — clima gratuita https://openweathermap.org/api
 
 services:
@@ -31,8 +32,8 @@ services:
     image: n8nio/n8n:latest
     environment:
       N8N_BASIC_AUTH_ACTIVE: "true"
-      N8N_BASIC_AUTH_USER: admin
-      N8N_BASIC_AUTH_PASSWORD: admin123
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:-admin123}
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-dev-n8n-encryption-key-must-be-32-chars-min-change-me}
       N8N_HOST: localhost
       N8N_PORT: 5678
