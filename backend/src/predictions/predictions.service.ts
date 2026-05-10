@@ -415,6 +415,159 @@ export class PredictionsService {
     });
   }
 
+  /** Panorama tipo manual §7: última predicción por lote con nivel de confianza y fichas aclaratorias */
+  async getOverviewPlots(userId: string) {
+    const plots = await this.prisma.lote.findMany({
+      where: { finca: { usuarioId: userId } },
+      include: {
+        finca: { select: { nombre: true } },
+        temporadas: {
+          where: { estado: 'activo' },
+          take: 1,
+          include: { cultivo: true },
+        },
+      },
+      orderBy: { nombre: 'asc' },
+    });
+
+    const out: Array<{
+      loteId: string;
+      loteNombre: string;
+      fincaNombre: string;
+      temporada: unknown;
+      prediccion: unknown;
+    }> = [];
+
+    for (const lote of plots) {
+      const t = lote.temporadas[0];
+      const pred = await this.prisma.prediccionRendimiento.findFirst({
+        where: {
+          loteId: lote.id,
+          ...(t ? { temporadaId: t.id } : {}),
+        },
+        orderBy: { fechaPrediccion: 'desc' },
+      });
+
+      let prediccion: unknown = null;
+      if (pred) {
+        const conf = this.explainConfidence(pred);
+        const fechaCosechaMl = this.estimateHarvestDate(pred, t);
+        const calidadGranoPct = this.estimateGrainQualityPct(pred, t);
+        prediccion = {
+          id: pred.id,
+          rendimientoKgHa: Number(pred.rendimientoEstimadoKgHa ?? 0),
+          fechaPrediccion: pred.fechaPrediccion,
+          intervaloConfianza: [
+            Number(pred.intervaloConfianzaInf ?? 0),
+            Number(pred.intervaloConfianzaSup ?? 0),
+          ],
+          precisionModeloDeclarada: pred.precisionModelo
+            ? Number(pred.precisionModelo)
+            : null,
+          modeloUtilizado: pred.modeloUtilizado,
+          nivelConfianza: conf.nivel,
+          nivelConfianzaEmoji: conf.emoji,
+          nivelConfianzaTexto: conf.textoAyuda,
+          fechaCosechaEstimada: fechaCosechaMl,
+          calidadGranoEstimadaPct: calidadGranoPct,
+          factoresInfluencia: pred.factoresInfluencia,
+        };
+      }
+
+      out.push({
+        loteId: lote.id,
+        loteNombre: lote.nombre,
+        fincaNombre: lote.finca.nombre,
+        temporada: t
+          ? {
+              id: t.id,
+              cultivoNombre: t.cultivo.nombre,
+              fechaSiembra: t.fechaSiembra,
+              fechaCosechaEstimada: t.fechaCosechaEstimada,
+              cicloDias: t.cultivo.cicloDias,
+            }
+          : null,
+        prediccion,
+      });
+    }
+
+    return out;
+  }
+
+  private explainConfidence(pred: {
+    rendimientoEstimadoKgHa: unknown | null;
+    intervaloConfianzaInf: unknown | null;
+    intervaloConfianzaSup: unknown | null;
+    precisionModelo: unknown | null;
+  }) {
+    const mid =
+      Number(pred.rendimientoEstimadoKgHa ?? 0) > 0
+        ? Number(pred.rendimientoEstimadoKgHa)
+        : 1;
+    const lo = Number(pred.intervaloConfianzaInf ?? mid);
+    const hi = Number(pred.intervaloConfianzaSup ?? mid);
+    const amplitudPct = Math.min(100, (Math.abs(hi - lo) / Math.max(mid, 1)) * 100);
+    const precModeloPct = Number(pred.precisionModelo ?? 0) * 100;
+    const combinado =
+      Math.max(
+        0,
+        Math.min(
+          100,
+          precModeloPct * 0.5 + Math.max(0, 50 - amplitudPct * 2) + 35,
+        ),
+      ) / 100;
+
+    let nivel: 'alta' | 'media' | 'baja';
+    if (combinado >= 0.85) nivel = 'alta';
+    else if (combinado >= 0.7) nivel = 'media';
+    else nivel = 'baja';
+
+    const textoAyuda =
+      nivel === 'alta'
+        ? 'Intervalo estrecho y datos suficientes para usar la cifra con confianza en planificación.'
+        : nivel === 'media'
+          ? 'Interpretar como orientativa; registrar más lecturas de sensores mejora el resultado.'
+          : 'Monitorear más variables y verificar datos de riego antes de definir objetivos de rendimiento.';
+    const emoji =
+      nivel === 'alta' ? '🟢' : nivel === 'media' ? '🟡' : '🔴';
+    return { nivel, textoAyuda, emoji, scoreCombinado: combinado };
+  }
+
+  private estimateHarvestDate(
+    pred: { fechaPrediccion: Date | null },
+    temporada?: {
+      fechaSiembra: Date;
+      cultivo?: { cicloDias: number | null } | null;
+    },
+  ) {
+    const start = temporada?.fechaSiembra
+      ? new Date(temporada.fechaSiembra)
+      : new Date(pred.fechaPrediccion ?? Date.now());
+    const ciclo =
+      temporada?.cultivo?.cicloDias != null ? Number(temporada.cultivo.cicloDias) : 120;
+    const d = new Date(start);
+    d.setUTCDate(d.getUTCDate() + ciclo);
+    return d;
+  }
+
+  private estimateGrainQualityPct(
+    pred: {
+      factoresInfluencia: unknown | null;
+      rendimientoEstimadoKgHa: unknown | null;
+    },
+    temporada?: { cultivo?: { nombre: string } | null },
+  ) {
+    const f = pred.factoresInfluencia as Record<string, number> | null;
+    const humImpact = typeof f?.humidity_impact === 'number' ? f.humidity_impact : 0;
+    const tempImpact = typeof f?.temperature_impact === 'number' ? f.temperature_impact : 0;
+    const nutrientes = typeof f?.nutrients_balance === 'number' ? f.nutrients_balance : 0;
+    let base = 75;
+    if (temporada?.cultivo?.nombre?.toLowerCase?.().includes('trigo'))
+      base = 78;
+    const adj = Math.min(22, Math.max(-18, nutrientes * 40 + tempImpact * 15 + humImpact * 22));
+    return Math.max(58, Math.min(99, Math.round(base + adj)));
+  }
+
   private getWeekNumber(date: Date): number {
     const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
     const pastDaysOfYear =

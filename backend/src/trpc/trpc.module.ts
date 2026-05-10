@@ -9,6 +9,7 @@ import { ReportsModule } from '../reports/reports.module';
 import { SensorsModule } from '../sensors/sensors.module';
 import { IrrigationModule } from '../irrigation/irrigation.module';
 import { AlertsModule } from '../alerts/alerts.module';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AlertsModule } from '../alerts/alerts.module';
     SensorsModule,
     IrrigationModule,
     AlertsModule,
+    AdminModule,
   ],
   providers: [TrpcService, TrpcRouter],
   exports: [TrpcService, TrpcRouter],

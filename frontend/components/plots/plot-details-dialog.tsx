@@ -14,9 +14,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { MapPin, Thermometer, Droplet, TrendingUp, Edit2, Check, X, Sprout } from 'lucide-react'
+import { MapPin, Thermometer, TrendingUp, Edit2, Check, X, Sprout } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { formatDate, formatNumber } from '@/lib/utils'
+import { useStoredUser } from '@/hooks/use-auth-token'
 
 interface PlotDetailsDialogProps {
   open: boolean
@@ -33,6 +34,8 @@ const ESTADO_CONFIG: Record<string, { label: string; variant: any }> = {
 
 export function PlotDetailsDialog({ open, onOpenChange, plot }: PlotDetailsDialogProps) {
   const { toast } = useToast()
+  const { user } = useStoredUser()
+  const canManageSensors = user?.rol?.toLowerCase() !== 'agricultor'
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({ nombre: '', areaHectareas: '' })
   const [iniciarOpen, setIniciarOpen] = useState(false)
@@ -51,10 +54,37 @@ export function PlotDetailsDialog({ open, onOpenChange, plot }: PlotDetailsDialo
     { enabled: !!plot?.id },
   )
   const { data: cultivos } = api.cultivos.getAll.useQuery(undefined, { enabled: iniciarOpen })
-  const { data: sensorReadings } = api.sensors.getLatestReadings.useQuery(
+  const { data: sensorsList, refetch: refetchSensors } = api.sensors.getByLote.useQuery(
     { loteId: plot?.id },
-    { enabled: !!plot?.id },
+    { enabled: !!plot?.id && open },
   )
+
+  const createSensor = api.sensors.create.useMutation({
+    onSuccess: () => {
+      toast({ title: 'Sensor registrado', variant: 'success' as any })
+      refetchSensors()
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  })
+  const updateSensor = api.sensors.update.useMutation({
+    onSuccess: () => refetchSensors(),
+    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  })
+  const deleteSensor = api.sensors.delete.useMutation({
+    onSuccess: () => {
+      toast({ title: 'Sensor eliminado' })
+      refetchSensors()
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  })
+
+  const [newSens, setNewSens] = useState({
+    codigo: '',
+    tipo: 'humedad' as 'clima' | 'suelo' | 'humedad' | 'temperatura',
+    intervaloMin: '',
+    critHum: '',
+    maxHum: '',
+  })
 
   const updatePlot = api.plots.update.useMutation({
     onSuccess: () => {
@@ -271,57 +301,195 @@ export function PlotDetailsDialog({ open, onOpenChange, plot }: PlotDetailsDialo
 
           {/* Tab: Sensores */}
           <TabsContent value="sensores" className="space-y-3 mt-4">
-            {!sensorReadings || sensorReadings.length === 0 ? (
+            {!canManageSensors && (
+              <p className="text-sm text-muted-foreground border rounded-md p-3 bg-muted/40">
+                La instalación y el alta o baja de sensores corresponden a <strong>técnicos</strong> o{' '}
+                <strong>administradores</strong>. Aquí puedes consultar lecturas cuando ya existan sensores en el lote.
+              </p>
+            )}
+            {canManageSensors && (
+            <Card className="border-dashed">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Registrar sensor</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Tipo</Label>
+                    <select
+                      className="w-full px-2 py-1.5 border rounded mt-1"
+                      value={newSens.tipo}
+                      onChange={(e) =>
+                        setNewSens({ ...newSens, tipo: e.target.value as typeof newSens.tipo })
+                      }
+                    >
+                      <option value="humedad">Humedad</option>
+                      <option value="suelo">Suelo</option>
+                      <option value="clima">Clima</option>
+                      <option value="temperatura">Temperatura</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Código (opcional)</Label>
+                    <Input
+                      className="h-9 mt-1"
+                      placeholder="AUTO si vacío"
+                      value={newSens.codigo}
+                      onChange={(e) => setNewSens({ ...newSens, codigo: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <Label className="text-xs">Lectura cada (min)</Label>
+                    <Input
+                      type="number"
+                      className="h-9 mt-1"
+                      placeholder="Ej. 15"
+                      value={newSens.intervaloMin}
+                      onChange={(e) => setNewSens({ ...newSens, intervaloMin: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Hum. crítica %</Label>
+                    <Input
+                      type="number"
+                      className="h-9 mt-1"
+                      placeholder="40"
+                      value={newSens.critHum}
+                      onChange={(e) => setNewSens({ ...newSens, critHum: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Hum. máx %</Label>
+                    <Input
+                      type="number"
+                      className="h-9 mt-1"
+                      placeholder="80"
+                      value={newSens.maxHum}
+                      onChange={(e) => setNewSens({ ...newSens, maxHum: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const metadatos: Record<string, unknown> = {};
+                    const im = Number(newSens.intervaloMin)
+                    if (!Number.isNaN(im) && im > 0)
+                      Object.assign(metadatos, { intervaloLecturaMinutos: im })
+                    const c = Number(newSens.critHum)
+                    const m = Number(newSens.maxHum)
+                    if ((!Number.isNaN(c) && c > 0) || (!Number.isNaN(m) && m > 0))
+                      Object.assign(metadatos, {
+                        umbrales: {
+                          ...(Number.isFinite(c) && c > 0
+                            ? { humedadSueloCriticaPct: c }
+                            : {}),
+                          ...(Number.isFinite(m) && m > 0 ? { humedadSueloMaxPct: m } : {}),
+                        },
+                      })
+                    createSensor.mutate({
+                      loteId: plot.id,
+                      tipo: newSens.tipo,
+                      ...(newSens.codigo.trim() ? { codigo: newSens.codigo.trim() } : {}),
+                      ...(Object.keys(metadatos).length ? { metadatos: metadatos as any } : {}),
+                    })
+                  }}
+                  disabled={createSensor.isLoading}
+                >
+                  Guardar sensor
+                </Button>
+              </CardContent>
+            </Card>
+            )}
+
+            {!sensorsList?.length ? (
               <div className="text-center py-8 text-gray-400">
                 <Thermometer className="h-8 w-8 mx-auto mb-2 text-gray-300" />
                 <p className="text-sm">Sin sensores instalados en este lote</p>
               </div>
             ) : (
-              sensorReadings.map((s: any) => (
-                <Card key={s.sensorId}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Thermometer className="h-4 w-4" />
-                      {s.codigo} — {s.tipo}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {s.ultimaLectura ? (
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        {s.ultimaLectura.temperatura !== null && (
-                          <div className="p-2 bg-orange-50 rounded">
-                            <p className="text-xs text-gray-500">Temperatura</p>
-                            <p className="font-bold">{s.ultimaLectura.temperatura}°C</p>
-                          </div>
-                        )}
-                        {s.ultimaLectura.humedadSuelo !== null && (
-                          <div className="p-2 bg-blue-50 rounded">
-                            <p className="text-xs text-gray-500">Humedad suelo</p>
-                            <p className="font-bold">{s.ultimaLectura.humedadSuelo}%</p>
-                          </div>
-                        )}
-                        {s.ultimaLectura.precipitacion !== null && (
-                          <div className="p-2 bg-cyan-50 rounded">
-                            <p className="text-xs text-gray-500">Precipitación</p>
-                            <p className="font-bold">{s.ultimaLectura.precipitacion} mm</p>
-                          </div>
-                        )}
-                        {s.ultimaLectura.velocidadViento !== null && (
-                          <div className="p-2 bg-gray-50 rounded">
-                            <p className="text-xs text-gray-500">Viento</p>
-                            <p className="font-bold">{s.ultimaLectura.velocidadViento} km/h</p>
-                          </div>
-                        )}
-                        <div className="col-span-2 text-xs text-gray-400">
-                          Última lectura: {formatDate(s.ultimaLectura.timestamp, { hour: '2-digit', minute: '2-digit' })}
+              (sensorsList as any[]).map((sensor: any) => {
+                const ult = sensor.lecturas?.[0]
+                return (
+                  <Card key={sensor.id}>
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between gap-2 items-start flex-wrap">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Thermometer className="h-4 w-4" />
+                          {sensor.codigo} — {sensor.tipo}{' '}
+                          {!sensor.activo ? (
+                            <Badge variant="secondary" className="text-[10px]">
+                              Inactivo
+                            </Badge>
+                          ) : null}
+                        </CardTitle>
+                        {canManageSensors ? (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              updateSensor.mutate({ sensorId: sensor.id, activo: !sensor.activo })
+                            }
+                          >
+                            {sensor.activo ? 'Desactivar' : 'Activar'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-600"
+                            onClick={() => {
+                              if (confirm(`¿Eliminar sensor ${sensor.codigo}?`))
+                                deleteSensor.mutate({ sensorId: sensor.id })
+                            }}
+                          >
+                            Eliminar
+                          </Button>
                         </div>
+                        ) : null}
                       </div>
-                    ) : (
-                      <p className="text-xs text-gray-400">Sin lecturas disponibles</p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))
+                    </CardHeader>
+                    <CardContent className="text-xs space-y-2">
+                      {sensor.metadatosSensor &&
+                        typeof sensor.metadatosSensor === 'object' && (
+                          <pre className="p-2 bg-muted rounded text-[11px] max-h-24 overflow-auto">
+                            {JSON.stringify(sensor.metadatosSensor, null, 2)}
+                          </pre>
+                        )}
+                      {ult ? (
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          {ult.temperatura !== null && (
+                            <div className="p-2 bg-orange-50 rounded">
+                              <p className="text-xs text-gray-500">Temperatura</p>
+                              <p className="font-bold">{ult.temperatura}°C</p>
+                            </div>
+                          )}
+                          {ult.humedadSuelo !== null && (
+                            <div className="p-2 bg-blue-50 rounded">
+                              <p className="text-xs text-gray-500">Humedad suelo</p>
+                              <p className="font-bold">{ult.humedadSuelo}%</p>
+                            </div>
+                          )}
+                          {ult.precipitacion !== null && (
+                            <div className="p-2 bg-cyan-50 rounded">
+                              <p className="text-xs text-gray-500">Precipitación</p>
+                              <p className="font-bold">{ult.precipitacion} mm</p>
+                            </div>
+                          )}
+                          <div className="col-span-2 text-[11px] text-gray-400">
+                            Última lectura:{' '}
+                            {formatDate(ult.timestamp, { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400">Sin lecturas disponibles</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })
             )}
           </TabsContent>
 

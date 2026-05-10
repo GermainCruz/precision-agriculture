@@ -1,15 +1,18 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Bell, AlertCircle, AlertTriangle, Info, Zap, CheckCheck, Loader2 } from 'lucide-react'
+import { Bell, AlertCircle, AlertTriangle, Info, Zap, CheckCheck, Loader2, MapPin } from 'lucide-react'
 import { GuestPrompt } from '@/components/auth/guest-prompt'
 import { useAuthToken } from '@/hooks/use-auth-token'
 import { formatDate } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 
 const severityConfig: Record<string, { label: string; icon: any; color: string; badgeVariant: any }> = {
   critica: { label: 'Crítica', icon: Zap, color: 'text-red-600 bg-red-50', badgeVariant: 'destructive' },
@@ -33,11 +36,31 @@ export default function AlertasPage() {
 
   const [page, setPage] = useState(0)
   const PAGE_SIZE = 15
+  const [filterTipo, setFilterTipo] = useState('')
+  const [filterSeveridad, setFilterSeveridad] = useState('')
+  const [filterLeida, setFilterLeida] = useState<'todas' | 'si' | 'no'>('todas')
+  const [filtroFincaId, setFiltroFincaId] = useState('')
+  const [filtroLoteId, setFiltroLoteId] = useState('')
+  const [desde, setDesde] = useState('')
+  const [hasta, setHasta] = useState('')
+
+  const { data: farms } = api.farms.getAll.useQuery(undefined, { enabled: canFetch })
+  const { data: plotsFiltro } = api.plots.getAllByFarm.useQuery(
+    { fincaId: filtroFincaId },
+    { enabled: canFetch && !!filtroFincaId },
+  )
 
   const { data, refetch, isLoading } = api.alerts.getAll.useQuery(
     {
       limit: PAGE_SIZE,
       offset: page * PAGE_SIZE,
+      ...(filterTipo ? { tipo: filterTipo } : {}),
+      ...(filterSeveridad ? { severidad: filterSeveridad } : {}),
+      ...(filterLeida === 'si' ? { leida: true } : {}),
+      ...(filterLeida === 'no' ? { leida: false } : {}),
+      ...(filtroLoteId ? { loteId: filtroLoteId } : {}),
+      ...(desde ? { desde: new Date(desde) } : {}),
+      ...(hasta ? { hasta: new Date(hasta) } : {}),
     },
     { enabled: canFetch },
   )
@@ -72,7 +95,7 @@ export default function AlertasPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">Centro de Alertas</h1>
           <p className="text-gray-500 text-sm mt-1">{total} alerta(s) en total</p>
@@ -85,6 +108,105 @@ export default function AlertasPage() {
           <CheckCheck className="mr-2 h-4 w-4" />
           Marcar todas como leídas
         </Button>
+      </div>
+
+      <div className="flex flex-wrap gap-3 items-end p-4 border rounded-lg bg-muted/30">
+        <div>
+          <Label className="text-xs">Tipo</Label>
+          <select
+            className="mt-1 block px-2 py-1.5 border rounded text-sm bg-white min-w-[120px]"
+            value={filterTipo}
+            onChange={(e) => {
+              setFilterTipo(e.target.value)
+              setPage(0)
+            }}
+          >
+            <option value="">Todos</option>
+            <option value="clima">Clima</option>
+            <option value="riego">Riego</option>
+            <option value="plaga">Plaga</option>
+            <option value="rendimiento">Rendimiento</option>
+            <option value="sistema">Sistema</option>
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs">Severidad</Label>
+          <select
+            className="mt-1 block px-2 py-1.5 border rounded text-sm bg-white min-w-[120px]"
+            value={filterSeveridad}
+            onChange={(e) => {
+              setFilterSeveridad(e.target.value)
+              setPage(0)
+            }}
+          >
+            <option value="">Todas</option>
+            <option value="critica">Crítica</option>
+            <option value="advertencia">Advertencia</option>
+            <option value="info">Info</option>
+            <option value="emergencia">Emergencia</option>
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs">Leída</Label>
+          <select
+            className="mt-1 block px-2 py-1.5 border rounded text-sm bg-white min-w-[100px]"
+            value={filterLeida}
+            onChange={(e) => {
+              setFilterLeida(e.target.value as 'todas' | 'si' | 'no')
+              setPage(0)
+            }}
+          >
+            <option value="todas">Todas</option>
+            <option value="no">No leídas</option>
+            <option value="si">Leídas</option>
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs">Finca (filtrar lote)</Label>
+          <select
+            className="mt-1 block px-2 py-1.5 border rounded text-sm bg-white min-w-[140px]"
+            value={filtroFincaId}
+            onChange={(e) => {
+              setFiltroFincaId(e.target.value)
+              setFiltroLoteId('')
+              setPage(0)
+            }}
+          >
+            <option value="">—</option>
+            {(farms as any)?.map((f: any) => (
+              <option key={f.id} value={f.id}>
+                {f.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs">Lote</Label>
+          <select
+            className="mt-1 block px-2 py-1.5 border rounded text-sm bg-white min-w-[140px]"
+            value={filtroLoteId}
+            onChange={(e) => {
+              setFiltroLoteId(e.target.value)
+              setPage(0)
+            }}
+            disabled={!filtroFincaId}
+          >
+            <option value="">Todos</option>
+            {(plotsFiltro as any)?.map((p: any) => (
+              <option key={p.id} value={p.id}>
+                {p.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs">Desde</Label>
+          <Input type="date" className="mt-1 h-9 w-36" value={desde} onChange={(e) => { setDesde(e.target.value); setPage(0) }} />
+        </div>
+        <div>
+          <Label className="text-xs">Hasta</Label>
+          <Input type="date" className="mt-1 h-9 w-36" value={hasta} onChange={(e) => { setHasta(e.target.value); setPage(0) }} />
+        </div>
       </div>
 
       {isLoading ? (
@@ -135,15 +257,25 @@ export default function AlertasPage() {
                       </p>
                     </div>
 
-                    {!alert.leida && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => markAsRead.mutate({ alertId: alert.id })}
-                      >
-                        Marcar leída
-                      </Button>
-                    )}
+                    <div className="flex flex-col gap-2 items-end shrink-0">
+                      {alert.lote?.id && (
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/lotes?plot=${alert.lote.id}`}>
+                            <MapPin className="mr-1 h-3 w-3" />
+                            Ir al lote
+                          </Link>
+                        </Button>
+                      )}
+                      {!alert.leida && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => markAsRead.mutate({ alertId: alert.id })}
+                        >
+                          Marcar leída
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

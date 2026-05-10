@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { GuestPrompt } from '@/components/auth/guest-prompt'
@@ -23,6 +24,9 @@ const TIPO_SUELO_LABELS: Record<string, string> = {
 }
 
 export default function LotesPage() {
+  const searchParams = useSearchParams()
+  const plotFromQuery = searchParams.get('plot')
+
   const { ready, isLoggedIn } = useAuthToken()
   const canFetch = ready && isLoggedIn
 
@@ -43,6 +47,18 @@ export default function LotesPage() {
     { fincaId: selectedFarm },
     { enabled: canFetch && !!selectedFarm },
   )
+
+  const { data: plotDeepLink } = api.plots.getById.useQuery(
+    { id: plotFromQuery! },
+    { enabled: canFetch && !!plotFromQuery },
+  )
+
+  useEffect(() => {
+    if (!plotDeepLink) return
+    const fincaId = (plotDeepLink as any).fincaId ?? (plotDeepLink as any).finca?.id
+    if (fincaId) setSelectedFarm(fincaId)
+    setSelectedPlot(plotDeepLink)
+  }, [plotDeepLink])
 
   if (!ready) {
     return (

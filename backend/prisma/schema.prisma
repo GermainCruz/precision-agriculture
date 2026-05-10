@@ -31,7 +31,8 @@ model Usuario {
   ultimoAcceso DateTime? @map("ultimo_acceso") @db.Timestamp(6)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  
+  preferenciasAlertas Json? @map("preferencias_alertas")
+
   rol        Rol           @relation(fields: [rolId], references: [id])
   fincas     Finca[]
   reportes   Reporte[]
@@ -117,11 +118,26 @@ model Sensor {
   instaladoEn      DateTime  @default(now()) @map("instalado_en") @db.Timestamp(6)
   ultimoMantenimiento DateTime? @map("ultimo_mantenimiento") @db.Timestamp(6)
   activo           Boolean   @default(true)
-  
+  metadatosSensor  Json?     @map("metadatos_sensor")
+
   lote     Lote?            @relation(fields: [loteId], references: [id])
   lecturas LecturaSensor[]
   
   @@map("sensor")
+}
+
+model AuditoriaAdmin {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  actorId    String    @map("actor_id") @db.Uuid
+  accion      String    @db.VarChar(160)
+  entidadTipo String?   @map("entidad_tipo") @db.VarChar(60)
+  entidadId   String?   @map("entidad_id") @db.Uuid
+  payload     Json?
+  creadoEn    DateTime  @default(now()) @map("creado_en") @db.Timestamp(6)
+
+  @@index([actorId])
+  @@index([creadoEn])
+  @@map("auditoria_admin")
 }
 
 model LecturaSensor {

@@ -571,36 +571,35 @@ Recursos disponibles:
 
 ### 11.3 Ejemplo de Uso: Día Típico de un Agricultor
 
-**🌅 7:00 AM — Revisión Matutina**
+> **Roles:** El perfil **agricultor** no tiene acceso al dashboard agregado ni al módulo de **reportes** (solo administradores y técnicos). El flujo diario siguiente refleja la app con esos límites; el modo invitado sigue §2.4.
 
-1. Ingresar al sistema
-2. Ver dashboard: rendimientos, alertas
-3. Revisar recomendación de riego
-4. Si alerta crítica → tomar acción inmediata
+**🌅 7:00 AM — Revisión matutina**
 
-**🌾 10:00 AM — Gestión de Lotes**
+1. Ingresar al sistema (entrada por defecto a **Lotes**).
+2. Revisar **Alertas**: filtrar no leídas o por severidad; usar **Ir al lote** para ir al parcelario asociado.
+3. Abrir **Riego** para la finca/lote seleccionados y revisar la recomendación (pronóstico, etapa del cultivo, suelo).
 
-1. Revisar lotes con humedad baja
-2. Programar riego para los más críticos
-3. Verificar predicciones de rendimiento
+**🌾 10:00 AM — Gestión de campo**
+
+1. En **Lotes**, priorizar parcelas según estado de temporada y sensores.
+2. Registrar o ajustar **sensores** desde el detalle del lote (metadatos, umbrales, activación).
+3. En **Predicciones**, ver el panorama por lote (confianza, factores, cosecha/calidad orientativos) y, si aplica, actualizar predicción desde el detalle del lote.
 
 **🔍 2:00 PM — Monitoreo**
 
-1. Consultar datos de sensores
-2. Comparar con pronóstico climático
-3. Ajustar programaciones si es necesario
+1. En **Monitoreo**, elegir lote y sensor, rango de fechas y revisar la serie diaria frente a rangos orientativos.
+2. Exportar **CSV** de lecturas para archivo o compartir con un técnico.
+3. Ajustar programación de riego si la humedad o el clima lo exigen.
 
-**📊 4:00 PM — Reportes**
+**⚙️ 4:00 PM — Configuración y equilibrio**
 
-1. Generar reporte operacional del día
-2. Registrar observaciones
-3. Programar reporte semanal automático
+1. En **Configuración**, guardar preferencias de notificación y umbrales globales de humedad (complemento a los del sensor).
+2. El agricultor **no** genera reportes PDF de gestión; si su organización requiere reportes, un **técnico** o **administrador** los emite desde la sección Reportes.
 
 **🔒 5:00 PM — Cierre**
 
-1. Verificar alertas pendientes
-2. Revisar predicciones para mañana
-3. Cerrar sesión (vuelves al Dashboard en modo invitado)
+1. Marcar alertas atendidas o revisar el historial filtrado.
+2. Cerrar sesión; según rol, la app puede llevarte a **Lotes** o al **Dashboard** en modo invitado (§2.4).
 
 ---
 

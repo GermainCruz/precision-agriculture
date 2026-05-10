@@ -91,4 +91,11 @@ export class TrpcService {
   dashboardAccessMiddleware() {
     return agricultorForbiddenMiddleware('Tu rol no tiene acceso al dashboard');
   }
+
+  /** Alta/edición/baja de sensores: solo administrador y técnico. */
+  sensorManageMiddleware() {
+    return agricultorForbiddenMiddleware(
+      'Solo administradores y técnicos pueden registrar o modificar sensores',
+    );
+  }
 }

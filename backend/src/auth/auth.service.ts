@@ -111,6 +111,8 @@ export class AuthService {
       nombre: usuario.nombre,
       apellido: usuario.apellido,
       rol: usuario.rol.nombre,
+      telefono: usuario.telefono,
+      preferenciasAlertas: usuario.preferenciasAlertas ?? undefined,
     };
   }
 }

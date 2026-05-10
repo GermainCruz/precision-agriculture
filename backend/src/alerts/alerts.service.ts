@@ -1,5 +1,18 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+
+export type PreferenciasAlertasUsuario = {
+  emailCriticas?: boolean;
+  emailDiarias?: boolean;
+  pushTodas?: boolean;
+  smsSolo?: boolean;
+  /** Umbrales globales opcionales (complementarios a metadatos por sensor). */
+  umbrales?: {
+    humedadSueloCriticaPct?: number;
+    humedadSueloMaxPct?: number;
+  };
+};
 
 @Injectable()
 export class AlertsService {
@@ -22,8 +35,32 @@ export class AlertsService {
     });
   }
 
-  async getAll(userId: string, limit?: number, offset?: number) {
-    const where = { usuarioId: userId };
+  async getAll(
+    userId: string,
+    opts?: {
+      limit?: number;
+      offset?: number;
+      tipo?: string;
+      severidad?: string;
+      leida?: boolean;
+      loteId?: string;
+      desde?: Date;
+      hasta?: Date;
+    },
+  ) {
+    const where = {
+      usuarioId: userId,
+      ...(opts?.tipo ? { tipo: opts.tipo } : {}),
+      ...(opts?.severidad ? { severidad: opts.severidad } : {}),
+      ...(opts?.leida !== undefined ? { leida: opts.leida } : {}),
+      ...(opts?.loteId ? { loteId: opts.loteId } : {}),
+      ...((opts?.desde || opts?.hasta) && {
+        creadaEn: {
+          ...(opts.desde ? { gte: opts.desde } : {}),
+          ...(opts.hasta ? { lte: opts.hasta } : {}),
+        },
+      }),
+    };
 
     const [alerts, total] = await Promise.all([
       this.prisma.alerta.findMany({
@@ -36,13 +73,43 @@ export class AlertsService {
           },
         },
         orderBy: { creadaEn: 'desc' },
-        take: limit,
-        skip: offset,
+        take: opts?.limit,
+        skip: opts?.offset,
       }),
       this.prisma.alerta.count({ where }),
     ]);
 
     return { alerts, total };
+  }
+
+  async updatePreferenciasAlertas(userId: string, patch: PreferenciasAlertasUsuario) {
+    const u = await this.prisma.usuario.findUnique({ where: { id: userId } });
+    if (!u) return null;
+    const prev =
+      u.preferenciasAlertas &&
+      typeof u.preferenciasAlertas === 'object' &&
+      !Array.isArray(u.preferenciasAlertas)
+        ? (u.preferenciasAlertas as Record<string, unknown>)
+        : {};
+    const next = {
+      ...prev,
+      ...(patch.emailCriticas !== undefined && { emailCriticas: patch.emailCriticas }),
+      ...(patch.emailDiarias !== undefined && { emailDiarias: patch.emailDiarias }),
+      ...(patch.pushTodas !== undefined && { pushTodas: patch.pushTodas }),
+      ...(patch.smsSolo !== undefined && { smsSolo: patch.smsSolo }),
+      ...(patch.umbrales !== undefined && {
+        umbrales: {
+          ...((prev.umbrales as object) ?? {}),
+          ...patch.umbrales,
+        },
+      }),
+    };
+    await this.prisma.usuario.update({
+      where: { id: userId },
+      data: { preferenciasAlertas: next as Prisma.InputJsonValue },
+      select: { id: true, preferenciasAlertas: true },
+    });
+    return next;
   }
 
   async getUnreadCount(userId: string): Promise<number> {

@@ -6,10 +6,11 @@ import { FarmsService } from '../farms/farms.service';
 import { PlotsService } from '../plots/plots.service';
 import { PredictionsService } from '../predictions/predictions.service';
 import { ReportsService } from '../reports/reports.service';
-import { SensorsService } from '../sensors/sensors.service';
+import { SensorsService, type SensorMetadatos } from '../sensors/sensors.service';
 import { IrrigationService } from '../irrigation/irrigation.service';
 import { AlertsService } from '../alerts/alerts.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { AdminService } from '../admin/admin.service';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
@@ -24,6 +25,7 @@ export class TrpcRouter {
     private readonly sensorsService: SensorsService,
     private readonly irrigationService: IrrigationService,
     private readonly alertsService: AlertsService,
+    private readonly adminService: AdminService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -285,6 +287,13 @@ export class TrpcRouter {
         .mutation(async ({ input, ctx }) => {
           return this.predictionsService.triggerPrediction(input.loteId, ctx.user.sub);
         }),
+
+      /** Resumen por lote tipo manual §7 (confianza, factores, cosecha/calidad orientativos). */
+      getOverviewPlots: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .query(async ({ ctx }) => {
+          return this.predictionsService.getOverviewPlots(ctx.user.sub);
+        }),
     }),
 
     // ── Sensors ───────────────────────────────────────────────────────────
@@ -314,6 +323,118 @@ export class TrpcRouter {
         .input(z.object({ loteId: z.string() }))
         .query(async ({ input, ctx }) => {
           return this.sensorsService.getLatestReadings(input.loteId, ctx.user.sub);
+        }),
+
+      seriesAggregatedDaily: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .input(z.object({
+          sensorId: z.string(),
+          startDate: z.coerce.date(),
+          endDate: z.coerce.date(),
+        }))
+        .query(async ({ input, ctx }) => {
+          return this.sensorsService.seriesAggregatedDaily(
+            input.sensorId, input.startDate, input.endDate, ctx.user.sub,
+          );
+        }),
+
+      readingsCsv: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .input(z.object({
+          sensorId: z.string(),
+          startDate: z.coerce.date(),
+          endDate: z.coerce.date(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          return this.sensorsService.readingsToCsv(
+            input.sensorId, input.startDate, input.endDate, ctx.user.sub,
+          );
+        }),
+
+      create: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .use(this.trpc.sensorManageMiddleware())
+        .input(z.object({
+          loteId: z.string(),
+          codigo: z.string().optional(),
+          tipo: z.enum(['clima', 'suelo', 'humedad', 'temperatura']),
+          ubicacion: z.object({ lat: z.number(), lng: z.number() }).optional(),
+          metadatos: z.object({
+            intervaloLecturaMinutos: z.number().optional(),
+            calibracion: z.object({
+              temperaturaDelta: z.number().optional(),
+              humedadPctDelta: z.number().optional(),
+            }).optional(),
+            umbrales: z.object({
+              humedadSueloCriticaPct: z.number().optional(),
+              humedadSueloMaxPct: z.number().optional(),
+            }).optional(),
+          }).optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          return this.sensorsService.createForPlot(ctx.user.sub, {
+            loteId: input.loteId,
+            codigo: input.codigo,
+            tipo: input.tipo,
+            ubicacion: input.ubicacion as { lat: number; lng: number } | undefined,
+            metadatos: input.metadatos as SensorMetadatos | undefined,
+          });
+        }),
+
+      update: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .use(this.trpc.sensorManageMiddleware())
+        .input(z.object({
+          sensorId: z.string(),
+          ubicacion: z.object({ lat: z.number(), lng: z.number() }).optional(),
+          activo: z.boolean().optional(),
+          ultimoMantenimiento: z.coerce.date().nullable().optional(),
+          metadatos: z.object({
+            intervaloLecturaMinutos: z.number().optional(),
+            calibracion: z.object({
+              temperaturaDelta: z.number().optional(),
+              humedadPctDelta: z.number().optional(),
+            }).optional(),
+            umbrales: z.object({
+              humedadSueloCriticaPct: z.number().optional(),
+              humedadSueloMaxPct: z.number().optional(),
+            }).optional(),
+          }).optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          const { sensorId, ubicacion, metadatos, activo, ultimoMantenimiento } = input;
+          const patch: {
+            ubicacion?: { lat: number; lng: number };
+            activo?: boolean;
+            metadatos?: SensorMetadatos;
+            ultimoMantenimiento?: Date | null;
+          } = {};
+          if (activo !== undefined) patch.activo = activo;
+          if (ultimoMantenimiento !== undefined) patch.ultimoMantenimiento = ultimoMantenimiento;
+          if (metadatos !== undefined) patch.metadatos = metadatos as SensorMetadatos;
+          if (
+            ubicacion !== undefined &&
+            ubicacion.lat != null &&
+            ubicacion.lng != null
+          ) {
+            patch.ubicacion = { lat: ubicacion.lat, lng: ubicacion.lng };
+          }
+          return this.sensorsService.updateSensor(sensorId, ctx.user.sub, patch);
+        }),
+
+      delete: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .use(this.trpc.sensorManageMiddleware())
+        .input(z.object({ sensorId: z.string() }))
+        .mutation(async ({ input, ctx }) => {
+          return this.sensorsService.deleteSensor(input.sensorId, ctx.user.sub);
+        }),
+
+      optimalRanges: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .input(z.object({ sensorId: z.string() }))
+        .query(async ({ input, ctx }) => {
+          return this.sensorsService.optimalRangesForSensor(input.sensorId, ctx.user.sub);
         }),
     }),
 
@@ -372,9 +493,50 @@ export class TrpcRouter {
       getAll: this.trpc.procedure
         .use(this.trpc.authMiddleware())
         .use(this.trpc.reportsAccessMiddleware())
-        .input(z.object({ tipo: z.enum(['operacional', 'gestion']).optional() }))
+        .input(z.object({
+          tipo: z.enum(['operacional', 'gestion']).optional(),
+          generadoDesde: z.coerce.date().optional(),
+          generadoHasta: z.coerce.date().optional(),
+        }))
         .query(async ({ input, ctx }) => {
-          return this.reportsService.findAll(ctx.user.sub, input.tipo);
+          return this.reportsService.findAll(ctx.user.sub, input);
+        }),
+
+      exportIndexCsv: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .use(this.trpc.reportsAccessMiddleware())
+        .input(z.object({
+          tipo: z.enum(['operacional', 'gestion']).optional(),
+          generadoDesde: z.coerce.date().optional(),
+          generadoHasta: z.coerce.date().optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          return this.reportsService.exportReportsIndexCsv(ctx.user.sub, input);
+        }),
+
+      exportIndexJson: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .use(this.trpc.reportsAccessMiddleware())
+        .input(z.object({
+          tipo: z.enum(['operacional', 'gestion']).optional(),
+          generadoDesde: z.coerce.date().optional(),
+          generadoHasta: z.coerce.date().optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          return this.reportsService.exportReportsIndexJson(ctx.user.sub, input);
+        }),
+
+      prepareShareEmail: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .use(this.trpc.reportsAccessMiddleware())
+        .input(z.object({
+          reportId: z.string(),
+          destinatarioEmail: z.string().email().optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          return this.reportsService.prepareShareEmail(
+            input.reportId, ctx.user.sub, input.destinatarioEmail,
+          );
         }),
 
       generateOperational: this.trpc.procedure
@@ -441,9 +603,34 @@ export class TrpcRouter {
 
       getAll: this.trpc.procedure
         .use(this.trpc.authMiddleware())
-        .input(z.object({ limit: z.number().optional(), offset: z.number().optional() }))
+        .input(z.object({
+          limit: z.number().optional(),
+          offset: z.number().optional(),
+          tipo: z.string().optional(),
+          severidad: z.string().optional(),
+          leida: z.boolean().optional(),
+          loteId: z.string().optional(),
+          desde: z.coerce.date().optional(),
+          hasta: z.coerce.date().optional(),
+        }))
         .query(async ({ input, ctx }) => {
-          return this.alertsService.getAll(ctx.user.sub, input.limit, input.offset);
+          return this.alertsService.getAll(ctx.user.sub, input);
+        }),
+
+      updatePreferencias: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .input(z.object({
+          emailCriticas: z.boolean().optional(),
+          emailDiarias: z.boolean().optional(),
+          pushTodas: z.boolean().optional(),
+          smsSolo: z.boolean().optional(),
+          umbrales: z.object({
+            humedadSueloCriticaPct: z.number().optional(),
+            humedadSueloMaxPct: z.number().optional(),
+          }).optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          return this.alertsService.updatePreferenciasAlertas(ctx.user.sub, input);
         }),
 
       markAsRead: this.trpc.procedure
@@ -510,6 +697,58 @@ export class TrpcRouter {
 
           return { yieldHistory, irrigationData, climateData, efficiencyMetrics };
         }),
+    }),
+
+    // ── Admin (solo rol administrador) ───────────────────────────────────
+    admin: this.trpc.router({
+      listUsers: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .use(this.trpc.adminMiddleware())
+        .query(async ({ ctx }) => this.adminService.listUsers(ctx.user.sub)),
+
+      createUser: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .use(this.trpc.adminMiddleware())
+        .input(z.object({
+          email: z.string().email(),
+          password: z.string().min(6),
+          nombre: z.string(),
+          apellido: z.string(),
+          rolNombre: z.enum(['administrador', 'tecnico', 'agricultor']),
+        }))
+        .mutation(async ({ input, ctx }) =>
+          this.adminService.createUser(ctx.user.sub, {
+            email: input.email,
+            password: input.password,
+            nombre: input.nombre,
+            apellido: input.apellido,
+            rolNombre: input.rolNombre,
+          })),
+
+      updateUser: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .use(this.trpc.adminMiddleware())
+        .input(z.object({
+          userId: z.string(),
+          nombre: z.string().optional(),
+          apellido: z.string().optional(),
+          rolNombre: z.enum(['administrador', 'tecnico', 'agricultor']).optional(),
+          activo: z.boolean().optional(),
+        }))
+        .mutation(async ({ input, ctx }) =>
+          this.adminService.updateUser(ctx.user.sub, input.userId, {
+            nombre: input.nombre,
+            apellido: input.apellido,
+            rolNombre: input.rolNombre,
+            activo: input.activo,
+          })),
+
+      listAudit: this.trpc.procedure
+        .use(this.trpc.authMiddleware())
+        .use(this.trpc.adminMiddleware())
+        .input(z.object({ limit: z.number().optional() }))
+        .query(async ({ input, ctx }) =>
+          this.adminService.listAudit(ctx.user.sub, input.limit)),
     }),
   });
 }

@@ -12,6 +12,8 @@ import {
   Settings,
   LogOut,
   LogIn,
+  TrendingUp,
+  Activity,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
@@ -25,6 +27,8 @@ const menuItems = [
     hideForRoles: ['agricultor'] as const,
   },
   { href: '/lotes', label: 'Lotes', icon: MapPin },
+  { href: '/predicciones', label: 'Predicciones', icon: TrendingUp },
+  { href: '/monitoreo', label: 'Monitoreo', icon: Activity },
   { href: '/riego', label: 'Riego', icon: Droplet },
   { href: '/reportes', label: 'Reportes', icon: FileText, hideForRoles: ['agricultor'] as const },
   { href: '/alertas', label: 'Alertas', icon: Bell },
@@ -38,11 +42,11 @@ export function Sidebar() {
   const { user } = useStoredUser()
 
   const visibleMenu = menuItems.filter((item) => {
-    const hide = 'hideForRoles' in item && item.hideForRoles
-    if (!hide?.length) return true
+    const hideRoles = 'hideForRoles' in item ? item.hideForRoles : undefined
+    if (!hideRoles?.length) return true
     const rol = user?.rol?.toLowerCase()
     if (!rol) return true
-    return !hide.some((r) => r.toLowerCase() === rol)
+    return !hideRoles.some((r) => r.toLowerCase() === rol)
   })
 
   const handleLogout = () => {

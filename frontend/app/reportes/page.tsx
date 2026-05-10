@@ -18,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { FileText, Plus, Download, Trash2, BarChart2, ClipboardList } from 'lucide-react'
+import { FileText, Plus, Download, Trash2, BarChart2, ClipboardList, Share2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 
@@ -37,6 +37,11 @@ export default function ReportesPage() {
   const canFetch = ready && isLoggedIn && !isAgricultor
 
   const [filterTipo, setFilterTipo] = useState<'operacional' | 'gestion' | undefined>()
+  const [filterDesde, setFilterDesde] = useState('')
+  const [filterHasta, setFilterHasta] = useState('')
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareReportId, setShareReportId] = useState<string | null>(null)
+  const [shareEmail, setShareEmail] = useState('')
   const [genDialogOpen, setGenDialogOpen] = useState(false)
   const [genType, setGenType] = useState<'operacional' | 'gestion'>('operacional')
   const [form, setForm] = useState({
@@ -46,10 +51,60 @@ export default function ReportesPage() {
     endDate: '',
   })
 
+  const reportFilters = {
+    tipo: filterTipo,
+    ...(filterDesde ? { generadoDesde: new Date(filterDesde) } : {}),
+    ...(filterHasta ? { generadoHasta: new Date(filterHasta) } : {}),
+  }
+
   const { data: reportes, refetch, isLoading } = api.reports.getAll.useQuery(
-    { tipo: filterTipo },
+    reportFilters,
     { enabled: canFetch },
   )
+
+  const exportIndexCsv = api.reports.exportIndexCsv.useMutation({
+    onSuccess: (data: { filename: string; csv: string }) => {
+      const blob = new Blob([data.csv], { type: 'text/csv;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = data.filename
+      a.click()
+      URL.revokeObjectURL(url)
+      toast({ title: 'CSV exportado', variant: 'success' as any })
+    },
+    onError: (err: any) => toast({ title: 'Error CSV', description: err.message, variant: 'destructive' }),
+  })
+
+  const exportIndexJson = api.reports.exportIndexJson.useMutation({
+    onSuccess: (data: { filename: string; json: string }) => {
+      const blob = new Blob([data.json], { type: 'application/json;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = data.filename
+      a.click()
+      URL.revokeObjectURL(url)
+      toast({ title: 'JSON exportado', variant: 'success' as any })
+    },
+    onError: (err: any) =>
+      toast({ title: 'Error JSON', description: err.message, variant: 'destructive' }),
+  })
+
+  const prepareShare = api.reports.prepareShareEmail.useMutation({
+    onSuccess: (data: { mailto: string | null; mensaje?: string }) => {
+      if (data.mailto) {
+        window.location.href = data.mailto
+        toast({ title: 'Cliente de correo', description: data.mensaje ?? 'Adjunta el PDF si tu cliente lo permite.' })
+      } else {
+        toast({ title: data.mensaje ?? 'Completa el email destino', variant: 'destructive' })
+      }
+      setShareOpen(false)
+      setShareReportId(null)
+      setShareEmail('')
+    },
+    onError: (err: any) => toast({ title: 'No se pudo preparar envío', description: err.message, variant: 'destructive' }),
+  })
   const { data: farms } = api.farms.getAll.useQuery(undefined, { enabled: canFetch })
   const { data: plots } = api.plots.getAllByFarm.useQuery(
     { fincaId: form.fincaId },
@@ -162,7 +217,7 @@ export default function ReportesPage() {
                 reservada a administradores y técnicos.
               </p>
               <Button asChild className="mt-2">
-                <Link href="/dashboard">Volver al panel</Link>
+                <Link href="/lotes">Ir a lotes</Link>
               </Button>
             </div>
           </CardContent>
@@ -185,28 +240,70 @@ export default function ReportesPage() {
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-2">
-        <Button
-          variant={filterTipo === undefined ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilterTipo(undefined)}
-        >
-          Todos
-        </Button>
-        <Button
-          variant={filterTipo === 'operacional' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilterTipo('operacional')}
-        >
-          Operacionales
-        </Button>
-        <Button
-          variant={filterTipo === 'gestion' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilterTipo('gestion')}
-        >
-          Gestión
-        </Button>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant={filterTipo === undefined ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilterTipo(undefined)}
+          >
+            Todos
+          </Button>
+          <Button
+            variant={filterTipo === 'operacional' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilterTipo('operacional')}
+          >
+            Operacionales
+          </Button>
+          <Button
+            variant={filterTipo === 'gestion' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilterTipo('gestion')}
+          >
+            Gestión
+          </Button>
+        </div>
+        <div className="flex gap-2 items-center">
+          <div>
+            <Label className="text-xs text-muted-foreground">Desde</Label>
+            <Input
+              type="date"
+              className="h-9 w-40"
+              value={filterDesde}
+              onChange={(e) => setFilterDesde(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Hasta</Label>
+            <Input
+              type="date"
+              className="h-9 w-40"
+              value={filterHasta}
+              onChange={(e) => setFilterHasta(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex gap-2 ml-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            onClick={() => exportIndexCsv.mutate(reportFilters)}
+            disabled={exportIndexCsv.isLoading}
+          >
+            Exportar índice CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            onClick={() => exportIndexJson.mutate(reportFilters)}
+            disabled={exportIndexJson.isLoading}
+          >
+            Exportar índice JSON
+          </Button>
+        </div>
       </div>
 
       {/* Lista de reportes */}
@@ -270,6 +367,17 @@ export default function ReportesPage() {
                           <Download className="h-4 w-4" />
                         </Button>
                       )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        title="Compartir por email"
+                        onClick={() => {
+                          setShareReportId(reporte.id)
+                          setShareOpen(true)
+                        }}
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -373,6 +481,48 @@ export default function ReportesPage() {
             </Button>
             <Button onClick={handleGenerate} disabled={isGenerating}>
               {isGenerating ? 'Generando…' : 'Generar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Enviar por email</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Se abrirá tu cliente de correo con el asunto y cuerpo preparados. Adjunta el PDF exportado desde la lista.
+          </p>
+          <div>
+            <Label>Email destino</Label>
+            <Input
+              type="email"
+              value={shareEmail}
+              onChange={(e) => setShareEmail(e.target.value)}
+              placeholder="tecnico@ejemplo.com"
+              className="mt-1"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShareOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={
+                prepareShare.isLoading ||
+                !shareReportId ||
+                !shareEmail.includes('@')
+              }
+              onClick={() =>
+                shareReportId &&
+                prepareShare.mutate({
+                  reportId: shareReportId,
+                  destinatarioEmail: shareEmail.trim(),
+                })
+              }
+            >
+              Abrir correo
             </Button>
           </DialogFooter>
         </DialogContent>

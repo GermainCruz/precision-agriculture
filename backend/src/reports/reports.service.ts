@@ -33,12 +33,37 @@ export class ReportsService {
     }
   }
 
-  async findAll(userId: string, tipo?: 'operacional' | 'gestion') {
+  private reportIndexWhere(
+    userId: string,
+    filters?: {
+      tipo?: 'operacional' | 'gestion';
+      generadoDesde?: Date;
+      generadoHasta?: Date;
+    },
+  ) {
+    const tipo = filters?.tipo;
+    return {
+      usuarioId: userId,
+      ...(tipo ? { tipo } : {}),
+      ...((filters?.generadoDesde || filters?.generadoHasta) && {
+        generadoEn: {
+          ...(filters?.generadoDesde ? { gte: filters.generadoDesde } : {}),
+          ...(filters?.generadoHasta ? { lte: filters.generadoHasta } : {}),
+        },
+      }),
+    };
+  }
+
+  async findAll(
+    userId: string,
+    filters?: {
+      tipo?: 'operacional' | 'gestion';
+      generadoDesde?: Date;
+      generadoHasta?: Date;
+    },
+  ) {
     const rows = await this.prisma.reporte.findMany({
-      where: {
-        usuarioId: userId,
-        ...(tipo && { tipo }),
-      },
+      where: this.reportIndexWhere(userId, filters),
       orderBy: { generadoEn: 'desc' },
     });
 
@@ -46,6 +71,75 @@ export class ReportsService {
       ...r,
       urlArchivo: this.sanitizeStoredFileUrl(r.urlArchivo),
     }));
+  }
+
+  async exportReportsIndexCsv(userId: string, filters?: Parameters<ReportsService['findAll']>[1]) {
+    const rows = await this.prisma.reporte.findMany({
+      where: this.reportIndexWhere(userId, filters),
+      orderBy: { generadoEn: 'desc' },
+    });
+    const header = ['id', 'tipo', 'formato', 'generado_en', 'tiene_url_descarga', 'parametros_json'];
+    const line = (cells: string[]) =>
+      cells.map((c) => `"${c.replace(/"/g, '""')}"`).join(',');
+    const lines = rows.map((r) =>
+      line([
+        r.id,
+        r.tipo,
+        r.formato,
+        r.generadoEn.toISOString(),
+        this.sanitizeStoredFileUrl(r.urlArchivo) ? 'si' : 'no',
+        JSON.stringify(r.parametrosFiltros ?? {}),
+      ]),
+    );
+    const csv = [line(header), ...lines].join('\n');
+    return { filename: 'reportes-indice.csv', csv };
+  }
+
+  async exportReportsIndexJson(userId: string, filters?: Parameters<ReportsService['findAll']>[1]) {
+    const rows = await this.prisma.reporte.findMany({
+      where: this.reportIndexWhere(userId, filters),
+      orderBy: { generadoEn: 'desc' },
+    });
+    const json = rows.map((r) => ({
+      id: r.id,
+      tipo: r.tipo,
+      formato: r.formato,
+      generadoEn: r.generadoEn,
+      urlDescargable: this.sanitizeStoredFileUrl(r.urlArchivo),
+      parametrosFiltros: r.parametrosFiltros,
+    }));
+    return { filename: 'reportes-indice.json', json: JSON.stringify(json, null, 2) };
+  }
+
+  /** Compartir por email (base sin SMTP): devuelve asunto/cuerpo y enlace mailto opcional. */
+  async prepareShareEmail(reportId: string, userId: string, destinatarioEmail?: string) {
+    const reporte = await this.prisma.reporte.findFirst({
+      where: { id: reportId, usuarioId: userId },
+      include: { usuario: { select: { nombre: true, email: true } } },
+    });
+    if (!reporte) throw new NotFoundException('Reporte no encontrado');
+    const asunto = `[AgriPrecision] Reporte ${reporte.tipo} ${reporte.generadoEn.toISOString().slice(0, 10)}`;
+    const cuerpo = [
+      `Informe tipo: ${reporte.tipo}`,
+      `Generado: ${reporte.generadoEn.toISOString()}`,
+      `Formato archivo: ${reporte.formato}`,
+      '',
+      'Adjunta este mensaje cuando envíes el PDF exportado desde la app (Reportes → Exportar PDF).',
+    ].join('\n');
+    let mailto: string | null = null;
+    if (destinatarioEmail?.includes('@')) {
+      const q = new URLSearchParams({ subject: asunto, body: cuerpo });
+      mailto = `mailto:${destinatarioEmail.trim()}?${q.toString()}`;
+    }
+    return {
+      mensaje:
+        destinatarioEmail?.includes('@')
+          ? 'Abre tu cliente de correo con “Enviar por email”; completa adjunto manual si tu entorno no lo automatiza.'
+          : 'Indica un email destino para preparar mailto:',
+      asunto,
+      cuerpo,
+      mailto,
+    };
   }
 
   private async computeOperationalContenido(

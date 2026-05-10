@@ -11,6 +11,7 @@ import { SensorsModule } from './sensors/sensors.module';
 import { IrrigationModule } from './irrigation/irrigation.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { TrpcModule } from './trpc/trpc.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { TrpcModule } from './trpc/trpc.module';
     SensorsModule,
     IrrigationModule,
     AlertsModule,
+    AdminModule,
     TrpcModule,
   ],
 })
